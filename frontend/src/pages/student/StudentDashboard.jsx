@@ -7,9 +7,11 @@ import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
 import { 
   LayoutDashboard, BookOpen, CreditCard, User, LogOut, 
   Bell, Calendar, Lock, AlertCircle, CheckCircle, ExternalLink, 
-  Printer, Shield, Menu, X, FileText, ChevronRight 
+  Printer, Shield, Menu, X, FileText, ChevronRight, Book, FileCheck
 } from 'lucide-react';
 import AdmissionLetter from '../../components/shared/AdmissionLetter';
+import LibraryView from '../../components/shared/LibraryView';
+import ReportCard from '../../components/shared/ReportCard';
 
 const StudentDashboard = () => {
   const { user, token, logout } = useAuthStore();
@@ -19,15 +21,24 @@ const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [profile, setProfile] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
+  const [fees, setFees] = useState({ fee_jamb: 0, fee_alevel: 0, fee_olevel: 0 });
+  const [results, setResults] = useState([]); // NEW: Added results state
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // --- Printing Logic ---
- const printRef = useRef();
-const handlePrint = useReactToPrint({ 
-  contentRef: printRef,
-  documentTitle: `Admission_Letter_${profile?.surname || 'Student'}`
-});
+  const admissionPrintRef = useRef();
+  const reportPrintRef = useRef(); // NEW: Added report print ref
+  
+  const handleAdmissionPrint = useReactToPrint({ 
+    contentRef: admissionPrintRef,
+    documentTitle: `Admission_Letter_${profile?.surname || 'Student'}`
+  });
+
+  const handleReportPrint = useReactToPrint({ // NEW: Added report print function
+    content: () => reportPrintRef.current,
+    documentTitle: `Report_Card_${profile?.surname || 'Student'}_${new Date().toISOString().split('T')[0]}`
+  });
 
   // --- 1. Fetch Data on Mount ---
   useEffect(() => {
@@ -39,17 +50,24 @@ const handlePrint = useReactToPrint({
     const initDashboard = async () => {
       try {
         if (user?.id) {
-          // Fetch Profile & Broadcasts in parallel
-          const [profileData, msgData] = await Promise.all([
+          // Fetch all data in parallel
+          const [profileData, msgData, feeData, resultsData] = await Promise.all([
             api.get(`/students/profile/${user.id}`, token),
-            api.get(`/students/announcements`, token)
+            api.get(`/students/announcements`, token),
+            api.get(`/students/fees`, token),
+            api.get(`/results/${user.id}`, token) // NEW: Fetch results
           ]);
           
           setProfile(profileData);
           setAnnouncements(msgData || []);
+          setFees(feeData || { fee_jamb: 15000, fee_alevel: 27500, fee_olevel: 10000 });
+          setResults(resultsData || []); // NEW: Set results
         }
       } catch (err) {
         console.error("Dashboard Load Error:", err);
+        // Set fallback values on error
+        setFees({ fee_jamb: 15000, fee_alevel: 27500, fee_olevel: 10000 });
+        setResults([]);
       } finally {
         setLoading(false);
       }
@@ -58,21 +76,26 @@ const handlePrint = useReactToPrint({
     initDashboard();
   }, [user, token, navigate]);
 
-  // --- 2. FLUTTERWAVE PAYMENT INTEGRATION ---
-  
-  // Calculate fee based on program type
+  // --- 2. GET CORRECT FEE AMOUNT FROM DATABASE ---
   const getFeeAmount = () => {
     const prog = profile?.program_type;
-    if (prog === 'JAMB') return 15000;
-    if (prog === 'A-Level') return 27500;
-    return 10000; 
+    if (prog === 'JAMB') return fees.fee_jamb;
+    if (prog === 'A-Level') return fees.fee_alevel;
+    return fees.fee_olevel;
   };
 
   const amount = profile ? getFeeAmount() : 0;
 
-  // Flutterwave Configuration
+  // --- 3. Calculate Average from Results ---
+  const calculateAverage = () => {
+    if (!results || results.length === 0) return 0;
+    const total = results.reduce((acc, curr) => acc + curr.total_score, 0);
+    return (total / results.length).toFixed(1);
+  };
+
+  // --- 4. FLUTTERWAVE CONFIGURATION ---
   const flutterwaveConfig = {
-    public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY || 'FLWPUBK-your-public-key-here',
+    public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
     tx_ref: `MCAS-${Date.now()}-${user?.id}`,
     amount: amount,
     currency: 'NGN',
@@ -84,23 +107,34 @@ const handlePrint = useReactToPrint({
     },
     customizations: {
       title: 'Merit College Tuition Payment',
-      description: `${profile?.program_type || 'Student'} Programme Fee`,
+      description: `${profile?.program_type || 'Student'} Programme Fee - ₦${amount.toLocaleString()}`,
       logo: 'https://st2.depositphotos.com/4403291/7418/v/450/depositphotos_74189661-stock-illustration-online-shop-log.jpg',
     },
   };
 
   const handleFlutterPayment = useFlutterwave(flutterwaveConfig);
 
-  // Payment Handler
+  // --- 5. PAYMENT HANDLER ---
   const initiatePayment = () => {
+    if (!import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY) {
+      alert("Payment system not configured. Please contact administrator.");
+      console.error("Missing VITE_FLUTTERWAVE_PUBLIC_KEY");
+      return;
+    }
+
+    const pubKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY;
+    if (pubKey.includes('TEST')) {
+      alert("System is in TEST MODE. Real payments cannot be processed. Contact admin.");
+      console.warn("Test key detected:", pubKey.substring(0, 20) + "...");
+    }
+
     handleFlutterPayment({
       callback: async (response) => {
         console.log('Flutterwave Response:', response);
-        closePaymentModal(); // Close the payment modal
+        closePaymentModal();
         
         if (response.status === "successful") {
           try {
-            // Verify payment on backend
             await api.post('/students/verify-payment', {
               transaction_id: response.transaction_id,
               student_id: user.id,
@@ -108,14 +142,14 @@ const handlePrint = useReactToPrint({
               currency: response.currency
             }, token);
             
-            alert("✅ Payment Successful! Your account has been updated. Page will refresh...");
+            alert("Payment Successful! Your account has been updated. Page will refresh...");
             setTimeout(() => window.location.reload(), 1500);
           } catch (err) {
             console.error('Payment verification error:', err);
-            alert("⚠️ Payment completed but verification failed. Please contact admin with this transaction ID: " + response.transaction_id);
+            alert("Payment completed but verification failed. Please contact admin with this transaction ID: " + response.transaction_id);
           }
         } else {
-          alert("❌ Payment was not successful. Please try again.");
+          alert("Payment was not successful. Please try again.");
         }
       },
       onClose: () => {
@@ -124,8 +158,7 @@ const handlePrint = useReactToPrint({
     });
   };
 
-  // --- 3. Action Handlers ---
-
+  // --- 6. Action Handlers ---
   const openTimetable = () => {
     window.open('https://meritstudenttimetable.vercel.app', '_blank');
   };
@@ -137,12 +170,8 @@ const handlePrint = useReactToPrint({
     }
   };
 
-  // --- 4. Security & Lock Logic ---
-  
-  // Locked if Admin has NOT validated the account yet
+  // --- 7. Security & Lock Logic ---
   const isAccountLocked = !profile?.is_validated;
-  
-  // Locked if Fees are NOT paid (prevents printing letter/viewing timetable)
   const isPaymentLocked = profile?.payment_status !== 'paid';
 
   if (loading) {
@@ -200,7 +229,22 @@ const handlePrint = useReactToPrint({
             locked={isAccountLocked}
           />
           
-          {/* TIMETABLE LINK */}
+          <SidebarItem 
+            icon={<FileCheck size={20}/>} 
+            label="Report Card" 
+            active={activeTab === 'report'} 
+            onClick={() => !isAccountLocked && setActiveTab('report')} 
+            locked={isAccountLocked}
+          />
+          
+          <SidebarItem 
+            icon={<Book size={20}/>} 
+            label="Library" 
+            active={activeTab === 'library'} 
+            onClick={() => !isAccountLocked && setActiveTab('library')} 
+            locked={isAccountLocked}
+          />
+          
           <button 
             onClick={openTimetable}
             disabled={isAccountLocked || isPaymentLocked}
@@ -219,7 +263,6 @@ const handlePrint = useReactToPrint({
           </button>
         </nav>
 
-        {/* Sidebar Footer */}
         <div className="p-4 border-t border-blue-800 bg-blue-950">
            <div className="flex items-center gap-3 mb-4 p-2 bg-blue-900 rounded-lg">
               <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center font-bold text-lg shadow-inner">
@@ -242,12 +285,14 @@ const handlePrint = useReactToPrint({
       {/* --- MAIN CONTENT AREA --- */}
       <main className="flex-1 p-4 md:p-8 mt-16 md:mt-0 overflow-y-auto h-screen bg-slate-50">
         
-        {/* Top Status Bar */}
         <header className="flex flex-col md:flex-row justify-between md:items-end mb-10 border-b border-slate-200 pb-6 gap-4">
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">
               {activeTab === 'overview' ? `Welcome back, ${profile?.surname}!` : 
-               activeTab === 'courses' ? 'Academic Courses' : 'Financial Status'}
+               activeTab === 'courses' ? 'Academic Courses' : 
+               activeTab === 'report' ? 'Academic Report' :
+               activeTab === 'library' ? 'Library' :
+               'Financial Status'}
             </h1>
             <p className="text-slate-500 mt-2 font-medium flex items-center gap-2">
               <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">Session 2025/2026</span>
@@ -257,7 +302,6 @@ const handlePrint = useReactToPrint({
           </div>
           
           <div className="flex flex-wrap gap-3">
-             {/* Account Validation Badge */}
              <div className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 border shadow-sm ${isAccountLocked ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
                {isAccountLocked ? <Lock size={16}/> : <Shield size={16}/>}
                <div>
@@ -266,7 +310,6 @@ const handlePrint = useReactToPrint({
                </div>
              </div>
 
-             {/* Payment Badge */}
              <div className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 border shadow-sm ${isPaymentLocked ? 'bg-red-50 text-red-700 border-red-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
                <CreditCard size={16}/>
                <div>
@@ -281,10 +324,8 @@ const handlePrint = useReactToPrint({
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn">
             
-            {/* Left Column: Alerts & Broadcasts */}
             <div className="lg:col-span-2 space-y-8">
               
-              {/* 1. Critical Alert: Account Locked */}
               {isAccountLocked && (
                 <div className="bg-orange-50 border-l-8 border-orange-500 p-6 rounded-r-xl shadow-sm flex flex-col sm:flex-row gap-6 items-start">
                   <div className="p-4 bg-orange-100 text-orange-600 rounded-full shrink-0">
@@ -303,7 +344,6 @@ const handlePrint = useReactToPrint({
                 </div>
               )}
 
-              {/* 2. Admission Letter Card (Visible only if Active) */}
               {!isAccountLocked && (
                 <div className="bg-white p-8 rounded-2xl shadow-soft border border-slate-200 relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-4 opacity-5">
@@ -320,7 +360,7 @@ const handlePrint = useReactToPrint({
                     </p>
                     
                     <button 
-                      onClick={handlePrint}
+                      onClick={handleAdmissionPrint}
                       disabled={isPaymentLocked}
                       className={`px-6 py-3 rounded-xl font-bold flex items-center gap-3 transition-all transform active:scale-95 ${
                         isPaymentLocked 
@@ -335,7 +375,6 @@ const handlePrint = useReactToPrint({
                 </div>
               )}
 
-              {/* 3. Broadcast Messages */}
               <div className="bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden">
                 <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -369,7 +408,6 @@ const handlePrint = useReactToPrint({
               </div>
             </div>
 
-            {/* Right Column: Profile Details */}
             <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden">
                 <div className="bg-blue-900 h-24 relative">
@@ -429,6 +467,108 @@ const handlePrint = useReactToPrint({
           </div>
         )}
 
+        {/* === REPORT CARD TAB === */}
+        {activeTab === 'report' && !isAccountLocked && (
+          <div className="bg-white p-8 rounded-2xl shadow-soft border border-slate-200 animate-fadeIn">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <FileCheck className="text-blue-600"/> Academic Report Card
+              </h2>
+              <button 
+                onClick={handleReportPrint} 
+                disabled={results.length === 0}
+                className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition ${
+                  results.length === 0 
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                <Printer size={18}/> Print Report Card
+              </button>
+            </div>
+            
+            {results.length === 0 ? (
+              <div className="text-center py-12">
+                <FileCheck size={48} className="mx-auto text-slate-300 mb-4"/>
+                <h3 className="text-lg font-bold text-slate-600 mb-2">No Results Available</h3>
+                <p className="text-slate-500">Your academic results will appear here once they are uploaded by your instructors.</p>
+              </div>
+            ) : (
+              <>
+                {/* Results Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
+                    <div className="text-sm text-blue-600 mb-2">Average Score</div>
+                    <div className="text-3xl font-black text-blue-900">{calculateAverage()}%</div>
+                  </div>
+                  <div className="bg-green-50 p-6 rounded-xl border border-green-100">
+                    <div className="text-sm text-green-600 mb-2">Total Subjects</div>
+                    <div className="text-3xl font-black text-green-900">{results.length}</div>
+                  </div>
+                  <div className={`p-6 rounded-xl border ${calculateAverage() >= 40 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                    <div className="text-sm mb-2">Performance Status</div>
+                    <div className={`text-2xl font-black ${calculateAverage() >= 40 ? 'text-green-700' : 'text-red-700'}`}>
+                      {calculateAverage() >= 40 ? 'PROMOTED' : 'REPEATING'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Results Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-100 text-slate-600 uppercase text-xs font-bold">
+                      <tr>
+                        <th className="p-4 border border-slate-300">Subject</th>
+                        <th className="p-4 border border-slate-300 text-center">CA (40)</th>
+                        <th className="p-4 border border-slate-300 text-center">Exam (60)</th>
+                        <th className="p-4 border border-slate-300 text-center">Total</th>
+                        <th className="p-4 border border-slate-300 text-center">Grade</th>
+                        <th className="p-4 border border-slate-300">Remark</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.map((res) => (
+                        <tr key={res.id} className="hover:bg-slate-50 transition">
+                          <td className="p-4 border border-slate-300 font-bold">{res.subject}</td>
+                          <td className="p-4 border border-slate-300 text-center">{res.ca_score}</td>
+                          <td className="p-4 border border-slate-300 text-center">{res.exam_score}</td>
+                          <td className="p-4 border border-slate-300 text-center font-bold">{res.total_score}</td>
+                          <td className={`p-4 border border-slate-300 text-center font-bold ${
+                            res.grade === 'A' ? 'text-green-600' : 
+                            res.grade === 'B' ? 'text-blue-600' : 
+                            res.grade === 'C' ? 'text-yellow-600' : 
+                            res.grade === 'F' ? 'text-red-600' : 'text-slate-600'
+                          }`}>
+                            {res.grade}
+                          </td>
+                          <td className="p-4 border border-slate-300 italic">
+                            {res.grade === 'A' ? 'Excellent' : 
+                             res.grade === 'B' ? 'Very Good' : 
+                             res.grade === 'C' ? 'Good' : 
+                             res.grade === 'D' ? 'Pass' : 
+                             res.grade === 'E' ? 'Fair' : 
+                             'Fail'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* === LIBRARY TAB === */}
+        {activeTab === 'library' && !isAccountLocked && (
+          <LibraryView 
+            user={profile} 
+            role="student" 
+            isAdmin={false} 
+            token={token} 
+          />
+        )}
+
         {/* === PAYMENTS TAB === */}
         {activeTab === 'payments' && !isAccountLocked && (
           <div className="bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden animate-fadeIn">
@@ -441,7 +581,6 @@ const handlePrint = useReactToPrint({
                 Securely pay your acceptance fees and tuition using Flutterwave.
               </p>
               
-              {/* Payment Amount Display */}
               <div className="mb-8 bg-blue-50 border border-blue-100 rounded-xl p-6 max-w-md mx-auto">
                 <div className="text-sm text-slate-600 mb-2">Programme Fee ({profile?.program_type})</div>
                 <div className="text-4xl font-black text-blue-900">₦{amount.toLocaleString()}</div>
@@ -470,17 +609,21 @@ const handlePrint = useReactToPrint({
 
       </main>
 
-      {/* Hidden Print Component - Rendered but invisible until Print triggered */}
+      {/* Hidden Print Components */}
       {!isPaymentLocked && (
         <div style={{ display: "none" }}>
-          <AdmissionLetter ref={printRef} student={profile} />
+          <AdmissionLetter ref={admissionPrintRef} student={profile} />
         </div>
       )}
+      
+      {/* Hidden Report Card Component */}
+      <div style={{ display: "none" }}>
+        <ReportCard ref={reportPrintRef} student={profile} results={results} />
+      </div>
     </div>
   );
 };
 
-// --- Reusable Sidebar Item ---
 const SidebarItem = ({ icon, label, active, onClick, locked }) => (
   <button 
     onClick={onClick}

@@ -8,29 +8,30 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 // Import Route Handlers
-// Ensure these files exist in your backend/src/routes folder
 const adminRoutes = require('./routes/adminRoutes');
 const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const staffRoutes = require('./routes/staffRoutes');
 const parentRoutes = require('./routes/parentRoutes');
+const libraryRoutes = require('./routes/libraryRoutes');
+const resultRoutes = require('./routes/resultRoutes'); 
 
 const app = express();
 
 // --- Security & Middleware Layer ---
-app.use(helmet()); // Adds security headers (prevents XSS, etc.)
+app.use(helmet());
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true, // Allows sessions/cookies if needed
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Increase body limit for photo uploads (Passport photos)
+// Increase body limit for photo uploads
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-app.use(morgan('dev')); // Logs requests to console for debugging
+app.use(morgan('dev'));
 
 // --- Health Check Route ---
 app.get('/', (req, res) => {
@@ -42,24 +43,15 @@ app.get('/', (req, res) => {
 });
 
 // --- API Routes ---
-
-// 1. Admin Management (Protected by verifyAdmin middleware inside the route)
 app.use('/api/schmngt', adminRoutes);
-
-// 2. Student Authentication (Login)
 app.use('/api/auth', authRoutes);
-
-// 3. Student Registration & Profile Management
 app.use('/api/students', studentRoutes);
-
-// 4. Staff Management (Registration & Login)
 app.use('/api/staff', staffRoutes);
-
-// 5. Parent Portal (Secure Read-Only Access)
 app.use('/api/parents', parentRoutes);
+app.use('/api/library', libraryRoutes);
+app.use('/api/results', resultRoutes); // NEW: Added results routes
 
 // --- Global Error Handling ---
-// This catches any crash errors and sends a clean JSON response instead of hanging the server
 app.use((err, req, res, next) => {
   console.error('🔥 Server Error:', err.stack);
   

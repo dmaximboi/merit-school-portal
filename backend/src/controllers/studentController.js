@@ -5,7 +5,6 @@ exports.getStudentProfile = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Fetch Student Data
     const { data: student, error } = await supabase
       .from('students')
       .select('*')
@@ -81,6 +80,29 @@ exports.verifyPayment = async (req, res) => {
     }
   } catch (err) {
     console.error("Payment Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 4. GET SCHOOL FEES
+exports.getSchoolFees = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('*')
+      .in('key', ['fee_jamb', 'fee_alevel', 'fee_olevel']);
+
+    if (error) throw error;
+
+    // Convert array to object: { fee_jamb: 20000, fee_alevel: 50000, fee_olevel: 10000 }
+    const fees = {};
+    data.forEach(item => {
+      fees[item.key] = Number(item.value);
+    });
+
+    res.json(fees);
+  } catch (err) {
+    console.error("Fee Fetch Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };

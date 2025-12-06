@@ -6,9 +6,11 @@ import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
 import { 
   LayoutDashboard, Users, Settings, LogOut, Bell, DollarSign, 
-  CheckCircle, XCircle, Printer, Lock, Unlock, Shield, Key, Loader2, AlertTriangle
+  CheckCircle, XCircle, Printer, Lock, Unlock, Shield, Key, 
+  Loader2, AlertTriangle, Book, FileText, FileCheck
 } from 'lucide-react';
 import AdmissionLetter from '../../components/shared/AdmissionLetter';
+import LibraryView from '../../components/shared/LibraryView';
 
 // Initialize Supabase locally to grab the session
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -31,23 +33,27 @@ const AdminDashboard = () => {
   const [fees, setFees] = useState([]);
   const [broadcast, setBroadcast] = useState({ title: '', message: '', target: 'all' });
   
+  // Results Management State
+  const [selectedStudentForResults, setSelectedStudentForResults] = useState(null);
+  const [scoreData, setScoreData] = useState({ subject: '', ca: '', exam: '' });
+  
   // Print Logic
- const printRef = useRef();
-const [printData, setPrintData] = useState(null);
-const handlePrint = useReactToPrint({ contentRef: printRef });
+  const printRef = useRef();
+  const [printData, setPrintData] = useState(null);
+  const handlePrint = useReactToPrint({ contentRef: printRef });
 
-  // Load Initial Data Function - SINGLE DECLARATION
+  // Load Initial Data Function
   const loadInitialData = async (token) => {
     setLoading(true);
     try {
-      console.log("Fetching Admin Data..."); // Debug Log
+      console.log("Fetching Admin Data...");
       
-      // 1. Get All Students directly first to verify DB connection
+      // Get All Students
       const studentsData = await api.get('/schmngt/students', token);
-      console.log("Students Received:", studentsData); // CHECK THIS IN CONSOLE
+      console.log("Students Received:", studentsData);
       setStudents(studentsData || []);
 
-      // 2. Get Stats & Settings
+      // Get Stats & Settings
       const statsData = await api.get('/schmngt/dashboard-stats', token);
       const settingsData = await api.get('/schmngt/settings', token);
       
@@ -56,13 +62,12 @@ const handlePrint = useReactToPrint({ contentRef: printRef });
       
     } catch (err) {
       console.error("Admin Data Load Error:", err);
-      // alert("Failed to load student data. Check console.");
     } finally {
       setLoading(false);
     }
   };
 
-  // 1. CRITICAL FIX: Get Session from Supabase on Mount
+  // Get Session from Supabase on Mount
   useEffect(() => {
     const initAdmin = async () => {
       try {
@@ -132,6 +137,25 @@ const handlePrint = useReactToPrint({ contentRef: printRef });
     setTimeout(() => handlePrint(), 500); 
   };
 
+  // Results Management Functions
+  const uploadResult = async () => {
+    if(!selectedStudentForResults || !scoreData.subject) return alert("Select student and subject");
+    try {
+      await api.post('/results/upload', {
+        student_id: selectedStudentForResults.id,
+        subject: scoreData.subject,
+        ca: scoreData.ca,
+        exam: scoreData.exam,
+        term: 'First Term',
+        session: '2025/2026'
+      }, adminToken);
+      alert("Result Saved Successfully!");
+      setScoreData({ subject: '', ca: '', exam: '' });
+    } catch(err) {
+      alert(err.message || "Failed to upload result");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
@@ -150,8 +174,10 @@ const handlePrint = useReactToPrint({ contentRef: printRef });
           <TabBtn icon={<LayoutDashboard/>} label="Overview" active={activeTab==='overview'} onClick={()=>setActiveTab('overview')} />
           <TabBtn icon={<Users/>} label="Students" active={activeTab==='students'} onClick={()=>setActiveTab('students')} />
           <TabBtn icon={<Shield/>} label="Staff Codes" active={activeTab==='staff'} onClick={()=>setActiveTab('staff')} />
+          <TabBtn icon={<FileCheck/>} label="Results Mgt" active={activeTab==='results'} onClick={()=>setActiveTab('results')} />
           <TabBtn icon={<DollarSign/>} label="Fees & Settings" active={activeTab==='settings'} onClick={()=>setActiveTab('settings')} />
           <TabBtn icon={<Bell/>} label="Broadcasts" active={activeTab==='broadcast'} onClick={()=>setActiveTab('broadcast')} />
+          <TabBtn icon={<Book/>} label="Library" active={activeTab==='library'} onClick={()=>setActiveTab('library')} />
         </nav>
         <div className="mt-auto pt-4 border-t border-blue-800">
           <p className="text-xs text-blue-300 mb-2 truncate">{adminEmail}</p>
@@ -172,6 +198,115 @@ const handlePrint = useReactToPrint({ contentRef: printRef });
             Session: 2025/2026
           </div>
         </header>
+
+        {/* LIBRARY TAB */}
+        {activeTab === 'library' && (
+          <LibraryView 
+            user={{ id: 'admin', email: adminEmail, full_name: 'Admin' }} 
+            role="admin" 
+            isAdmin={true} 
+            token={adminToken} 
+          />
+        )}
+
+        {/* RESULTS MANAGEMENT TAB */}
+        {activeTab === 'results' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeIn">
+            {/* Student List */}
+            <div className="bg-white p-6 rounded-xl shadow-sm h-96 overflow-y-auto">
+              <h3 className="font-bold mb-4 text-lg text-slate-800">Select Student</h3>
+              <div className="space-y-2">
+                {students.map(s => (
+                  <div 
+                    key={s.id} 
+                    onClick={()=>setSelectedStudentForResults(s)} 
+                    className={`p-3 border-b cursor-pointer hover:bg-blue-50 transition-colors rounded-lg ${
+                      selectedStudentForResults?.id === s.id 
+                      ? 'bg-blue-100 border-blue-500 border-l-4' 
+                      : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="font-bold text-slate-900">{s.surname} {s.first_name}</div>
+                    <div className="text-xs text-slate-500">{s.student_id_text} • {s.program_type}</div>
+                    <div className="text-xs text-slate-400">{s.department}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Entry Form */}
+            <div className="bg-white p-6 rounded-xl shadow-sm">
+              <h3 className="font-bold text-lg mb-4 text-slate-800">
+                Enter Scores for: <span className="text-blue-600">{selectedStudentForResults?.surname || 'Select Student'}</span>
+              </h3>
+              <div className="space-y-4">
+                <select 
+                  className="input-field w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  value={scoreData.subject} 
+                  onChange={e=>setScoreData({...scoreData, subject: e.target.value})}
+                >
+                  <option value="">Select Subject</option>
+                  <option value="Mathematics">Mathematics</option>
+                  <option value="English Language">English Language</option>
+                  <option value="Physics">Physics</option>
+                  <option value="Chemistry">Chemistry</option>
+                  <option value="Biology">Biology</option>
+                  <option value="Economics">Economics</option>
+                  <option value="Government">Government</option>
+                  <option value="Literature">Literature</option>
+                </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <input 
+                    type="number" 
+                    className="input-field p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="CA (40)" 
+                    min="0"
+                    max="40"
+                    value={scoreData.ca} 
+                    onChange={e=>setScoreData({...scoreData, ca: e.target.value})} 
+                  />
+                  <input 
+                    type="number" 
+                    className="input-field p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="Exam (60)" 
+                    min="0"
+                    max="60"
+                    value={scoreData.exam} 
+                    onChange={e=>setScoreData({...scoreData, exam: e.target.value})} 
+                  />
+                </div>
+                <button 
+                  onClick={uploadResult} 
+                  disabled={!selectedStudentForResults || !scoreData.subject}
+                  className={`w-full p-3 rounded-lg font-bold transition ${
+                    !selectedStudentForResults || !scoreData.subject
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+                >
+                  Save Result
+                </button>
+                
+                {scoreData.ca && scoreData.exam && (
+                  <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-700">Total Score:</span>
+                      <span className="font-bold text-blue-700 text-lg">
+                        {(parseFloat(scoreData.ca || 0) + parseFloat(scoreData.exam || 0)).toFixed(1)}/100
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-slate-700">Grade:</span>
+                      <span className="font-bold text-lg">
+                        {calculateGrade(parseFloat(scoreData.ca || 0) + parseFloat(scoreData.exam || 0))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
@@ -364,6 +499,16 @@ const StatCard = ({ label, value, color, icon }) => {
       <div className="opacity-80">{icon}</div>
     </div>
   );
+};
+
+// Grade calculation helper function
+const calculateGrade = (total) => {
+  if (total >= 70) return 'A';
+  if (total >= 60) return 'B';
+  if (total >= 50) return 'C';
+  if (total >= 45) return 'D';
+  if (total >= 40) return 'E';
+  return 'F';
 };
 
 export default AdminDashboard;
