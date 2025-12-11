@@ -3,11 +3,12 @@ import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
+import html2canvas from 'html2canvas';
 import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
 import { 
   LayoutDashboard, BookOpen, CreditCard, User, LogOut, 
   Bell, Calendar, Lock, AlertCircle, CheckCircle, ExternalLink, 
-  Printer, Shield, Menu, X, FileText, ChevronRight, Book, FileCheck
+  Printer, Shield, Menu, X, FileText, ChevronRight, Book, FileCheck, Download, Share2
 } from 'lucide-react';
 import AdmissionLetter from '../../components/shared/AdmissionLetter';
 import LibraryView from '../../components/shared/LibraryView';
@@ -17,30 +18,101 @@ const StudentDashboard = () => {
   const { user, token, logout } = useAuthStore();
   const navigate = useNavigate();
   
-  // --- State Management ---
   const [activeTab, setActiveTab] = useState('overview');
   const [profile, setProfile] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
   const [fees, setFees] = useState({ fee_jamb: 0, fee_alevel: 0, fee_olevel: 0 });
-  const [results, setResults] = useState([]); // NEW: Added results state
+  const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // --- Printing Logic ---
   const admissionPrintRef = useRef();
-  const reportPrintRef = useRef(); // NEW: Added report print ref
+  const reportPrintRef = useRef();
   
+  // Desktop Print
   const handleAdmissionPrint = useReactToPrint({ 
     contentRef: admissionPrintRef,
-    documentTitle: `Admission_Letter_${profile?.surname || 'Student'}`
+    documentTitle: `Admission_Letter_${profile?.surname || 'Student'}`,
+    pageStyle: `
+      @page {
+        size: A4;
+        margin: 15mm;
+      }
+      @media print {
+        body {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+      }
+    `
   });
 
-  const handleReportPrint = useReactToPrint({ // NEW: Added report print function
+  const handleReportPrint = useReactToPrint({
     content: () => reportPrintRef.current,
-    documentTitle: `Report_Card_${profile?.surname || 'Student'}_${new Date().toISOString().split('T')[0]}`
+    documentTitle: `Report_Card_${profile?.surname || 'Student'}`,
+    pageStyle: `
+      @page {
+        size: A4;
+        margin: 15mm;
+      }
+      @media print {
+        body {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+      }
+    `
   });
 
-  // --- 1. Fetch Data on Mount ---
+  // Mobile Download Admission Letter
+  const handleAdmissionDownload = async () => {
+    try {
+      const element = admissionPrintRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      const link = document.createElement('a');
+      link.download = `Admission_Letter_${profile?.surname}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      alert('Failed to download. Please try print instead.');
+    }
+  };
+
+  // Mobile Share Admission Letter
+  const handleAdmissionShare = async () => {
+    try {
+      const element = admissionPrintRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], `Admission_Letter_${profile?.surname}.png`, { type: 'image/png' });
+        
+        if (navigator.share && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Admission Letter',
+            text: 'Merit College Admission Letter'
+          });
+        } else {
+          alert('Share not supported. Use Download instead.');
+        }
+      });
+    } catch (err) {
+      alert('Failed to share. Please try download instead.');
+    }
+  };
+
   useEffect(() => {
     if (!token) {
       navigate('/auth/student');
@@ -50,22 +122,20 @@ const StudentDashboard = () => {
     const initDashboard = async () => {
       try {
         if (user?.id) {
-          // Fetch all data in parallel
           const [profileData, msgData, feeData, resultsData] = await Promise.all([
             api.get(`/students/profile/${user.id}`, token),
             api.get(`/students/announcements`, token),
             api.get(`/students/fees`, token),
-            api.get(`/results/${user.id}`, token) // NEW: Fetch results
+            api.get(`/results/${user.id}`, token)
           ]);
           
           setProfile(profileData);
           setAnnouncements(msgData || []);
           setFees(feeData || { fee_jamb: 15000, fee_alevel: 27500, fee_olevel: 10000 });
-          setResults(resultsData || []); // NEW: Set results
+          setResults(resultsData || []);
         }
       } catch (err) {
         console.error("Dashboard Load Error:", err);
-        // Set fallback values on error
         setFees({ fee_jamb: 15000, fee_alevel: 27500, fee_olevel: 10000 });
         setResults([]);
       } finally {
@@ -76,7 +146,6 @@ const StudentDashboard = () => {
     initDashboard();
   }, [user, token, navigate]);
 
-  // --- 2. GET CORRECT FEE AMOUNT FROM DATABASE ---
   const getFeeAmount = () => {
     const prog = profile?.program_type;
     if (prog === 'JAMB') return fees.fee_jamb;
@@ -86,14 +155,12 @@ const StudentDashboard = () => {
 
   const amount = profile ? getFeeAmount() : 0;
 
-  // --- 3. Calculate Average from Results ---
   const calculateAverage = () => {
     if (!results || results.length === 0) return 0;
     const total = results.reduce((acc, curr) => acc + curr.total_score, 0);
     return (total / results.length).toFixed(1);
   };
 
-  // --- 4. FLUTTERWAVE CONFIGURATION ---
   const flutterwaveConfig = {
     public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
     tx_ref: `MCAS-${Date.now()}-${user?.id}`,
@@ -114,23 +181,19 @@ const StudentDashboard = () => {
 
   const handleFlutterPayment = useFlutterwave(flutterwaveConfig);
 
-  // --- 5. PAYMENT HANDLER ---
   const initiatePayment = () => {
     if (!import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY) {
       alert("Payment system not configured. Please contact administrator.");
-      console.error("Missing VITE_FLUTTERWAVE_PUBLIC_KEY");
       return;
     }
 
     const pubKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY;
     if (pubKey.includes('TEST')) {
-      alert("System is in TEST MODE. Real payments cannot be processed. Contact admin.");
-      console.warn("Test key detected:", pubKey.substring(0, 20) + "...");
+      alert("System is in TEST MODE. Real payments cannot be processed.");
     }
 
     handleFlutterPayment({
       callback: async (response) => {
-        console.log('Flutterwave Response:', response);
         closePaymentModal();
         
         if (response.status === "successful") {
@@ -142,23 +205,19 @@ const StudentDashboard = () => {
               currency: response.currency
             }, token);
             
-            alert("Payment Successful! Your account has been updated. Page will refresh...");
+            alert("Payment Successful! Your account has been updated.");
             setTimeout(() => window.location.reload(), 1500);
           } catch (err) {
-            console.error('Payment verification error:', err);
-            alert("Payment completed but verification failed. Please contact admin with this transaction ID: " + response.transaction_id);
+            alert("Payment completed but verification failed. Contact admin with transaction ID: " + response.transaction_id);
           }
         } else {
           alert("Payment was not successful. Please try again.");
         }
       },
-      onClose: () => {
-        console.log('Payment modal closed');
-      },
+      onClose: () => {},
     });
   };
 
-  // --- 6. Action Handlers ---
   const openTimetable = () => {
     window.open('https://meritstudenttimetable.vercel.app', '_blank');
   };
@@ -170,7 +229,6 @@ const StudentDashboard = () => {
     }
   };
 
-  // --- 7. Security & Lock Logic ---
   const isAccountLocked = !profile?.is_validated;
   const isPaymentLocked = profile?.payment_status !== 'paid';
 
@@ -186,7 +244,6 @@ const StudentDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800">
       
-      {/* --- MOBILE HEADER --- */}
       <div className="md:hidden fixed w-full bg-blue-900 text-white z-50 flex justify-between items-center p-4 shadow-md">
         <div className="font-bold text-lg tracking-wide">MCAS Portal</div>
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-blue-800 rounded">
@@ -194,7 +251,6 @@ const StudentDashboard = () => {
         </button>
       </div>
 
-      {/* --- SIDEBAR NAVIGATION --- */}
       <aside className={`fixed md:static inset-y-0 left-0 z-40 w-72 bg-blue-900 text-white transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col shadow-2xl`}>
         
         <div className="p-6 text-2xl font-bold border-b border-blue-800 flex items-center gap-3 bg-blue-950">
@@ -282,7 +338,6 @@ const StudentDashboard = () => {
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT AREA --- */}
       <main className="flex-1 p-4 md:p-8 mt-16 md:mt-0 overflow-y-auto h-screen bg-slate-50">
         
         <header className="flex flex-col md:flex-row justify-between md:items-end mb-10 border-b border-slate-200 pb-6 gap-4">
@@ -320,7 +375,6 @@ const StudentDashboard = () => {
           </div>
         </header>
 
-        {/* === OVERVIEW TAB === */}
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn">
             
@@ -359,18 +413,46 @@ const StudentDashboard = () => {
                         : "Your official Merit College admission letter is ready. You can download and print it for your records."}
                     </p>
                     
-                    <button 
-                      onClick={handleAdmissionPrint}
-                      disabled={isPaymentLocked}
-                      className={`px-6 py-3 rounded-xl font-bold flex items-center gap-3 transition-all transform active:scale-95 ${
-                        isPaymentLocked 
-                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-blue-200'
-                      }`}
-                    >
-                      {isPaymentLocked ? <Lock size={18}/> : <Printer size={18}/>}
-                      {isPaymentLocked ? 'Unlock via Payment' : 'Print Official Letter'}
-                    </button>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={handleAdmissionPrint}
+                        disabled={isPaymentLocked}
+                        className={`hidden md:flex px-6 py-3 rounded-xl font-bold items-center gap-3 transition-all ${
+                          isPaymentLocked 
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                          : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg'
+                        }`}
+                      >
+                        {isPaymentLocked ? <Lock size={18}/> : <Printer size={18}/>}
+                        {isPaymentLocked ? 'Locked' : 'Print PDF'}
+                      </button>
+                      
+                      <button 
+                        onClick={handleAdmissionDownload}
+                        disabled={isPaymentLocked}
+                        className={`px-6 py-3 rounded-xl font-bold flex items-center gap-3 transition-all ${
+                          isPaymentLocked 
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                          : 'bg-green-600 text-white hover:bg-green-700 shadow-lg'
+                        }`}
+                      >
+                        <Download size={18}/>
+                        Download
+                      </button>
+                      
+                      <button 
+                        onClick={handleAdmissionShare}
+                        disabled={isPaymentLocked}
+                        className={`md:hidden px-6 py-3 rounded-xl font-bold flex items-center gap-3 transition-all ${
+                          isPaymentLocked 
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                          : 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg'
+                        }`}
+                      >
+                        <Share2 size={18}/>
+                        Share
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -448,7 +530,6 @@ const StudentDashboard = () => {
           </div>
         )}
 
-        {/* === COURSES TAB === */}
         {activeTab === 'courses' && !isAccountLocked && (
           <div className="bg-white p-8 rounded-2xl shadow-soft border border-slate-200 animate-fadeIn">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-slate-800">
@@ -467,7 +548,6 @@ const StudentDashboard = () => {
           </div>
         )}
 
-        {/* === REPORT CARD TAB === */}
         {activeTab === 'report' && !isAccountLocked && (
           <div className="bg-white p-8 rounded-2xl shadow-soft border border-slate-200 animate-fadeIn">
             <div className="flex justify-between items-center mb-6">
@@ -495,7 +575,6 @@ const StudentDashboard = () => {
               </div>
             ) : (
               <>
-                {/* Results Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                   <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
                     <div className="text-sm text-blue-600 mb-2">Average Score</div>
@@ -513,7 +592,6 @@ const StudentDashboard = () => {
                   </div>
                 </div>
 
-                {/* Results Table */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-slate-100 text-slate-600 uppercase text-xs font-bold">
@@ -559,7 +637,6 @@ const StudentDashboard = () => {
           </div>
         )}
 
-        {/* === LIBRARY TAB === */}
         {activeTab === 'library' && !isAccountLocked && (
           <LibraryView 
             user={profile} 
@@ -569,7 +646,6 @@ const StudentDashboard = () => {
           />
         )}
 
-        {/* === PAYMENTS TAB === */}
         {activeTab === 'payments' && !isAccountLocked && (
           <div className="bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden animate-fadeIn">
             <div className="p-10 text-center">
@@ -609,14 +685,12 @@ const StudentDashboard = () => {
 
       </main>
 
-      {/* Hidden Print Components */}
       {!isPaymentLocked && (
         <div style={{ display: "none" }}>
           <AdmissionLetter ref={admissionPrintRef} student={profile} />
         </div>
       )}
       
-      {/* Hidden Report Card Component */}
       <div style={{ display: "none" }}>
         <ReportCard ref={reportPrintRef} student={profile} results={results} />
       </div>
