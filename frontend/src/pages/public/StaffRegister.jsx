@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import html2canvas from 'html2canvas';
 import { api } from '../../lib/api';
-import { Shield, User, Mail, Lock, Briefcase, Key, Loader2, Phone, MapPin, GraduationCap, Eye, X, Printer, Download, Share2 } from 'lucide-react';
+import { Shield, User, Mail, Lock, Key, Loader2, Phone, MapPin, GraduationCap, Eye, X, Printer, Download, Share2, AlertTriangle, CheckCircle } from 'lucide-react';
 
 const StaffRegister = () => {
   const navigate = useNavigate();
@@ -15,7 +15,9 @@ const StaffRegister = () => {
     fullName: '', email: '', password: '',
     department: '', position: '',
     phone: '', address: '', qualification: '', gender: '',
-    adminToken: ''
+    adminToken: '',
+    signature: '',
+    termsAccepted: false
   });
 
   // Desktop Print (PDF)
@@ -87,6 +89,9 @@ const StaffRegister = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.termsAccepted) return alert("You must accept the Staff Code of Conduct.");
+    if (!formData.signature) return alert("Please sign the form digitally.");
+
     setLoading(true);
     try {
       await api.post('/staff/register', formData);
@@ -192,7 +197,7 @@ const StaffRegister = () => {
           </div>
 
           <InputField 
-            label="Password" 
+            label="Create Password" 
             icon={<Lock size={18}/>} 
             type="password" 
             value={formData.password} 
@@ -202,19 +207,70 @@ const StaffRegister = () => {
           
           <div className="pt-4 border-t border-slate-100">
             <label className="label-text text-red-600 flex items-center gap-1">
-              <Key size={14}/> Admin Token
+              <Key size={14}/> Admin Token (Required)
             </label>
             <input 
               type="password" 
               className="input-field border-red-200 focus:ring-red-200 bg-red-50" 
-              placeholder="Ask Admin for Key"
+              placeholder="Enter Key provided by Admin"
               value={formData.adminToken}
               onChange={e => setFormData({...formData, adminToken: e.target.value})}
               required
             />
           </div>
 
-          <div className="flex gap-3">
+          {/* New Sections Start */}
+          <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded shadow-sm mt-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="text-amber-600 shrink-0" size={24}/>
+              <div>
+                <h3 className="font-bold text-amber-900">IMPORTANT NOTICE</h3>
+                <p className="text-amber-800 text-sm mt-1">
+                  You are required to download/print this form after filling. It serves as your temporary staff ID until a permanent one is issued.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 h-64 overflow-y-auto text-sm text-slate-600 shadow-inner mt-4">
+            <h3 className="font-bold text-slate-900 mb-4 sticky top-0 bg-slate-50 pb-2 border-b border-slate-200">Staff Code of Conduct</h3>
+            <ol className="list-decimal ml-4 space-y-2">
+              <li>Punctuality is mandatory. Staff must clock in by 7:30 AM daily.</li>
+              <li>Dress code must be professional and corporate at all times within the school premises.</li>
+              <li>Use of mobile phones during active class hours is strictly prohibited.</li>
+              <li>Staff must submit lesson notes and diaries to the VP Academics every Friday.</li>
+              <li>Corporal punishment is regulated; staff must adhere to the school's disciplinary policy.</li>
+              <li>Confidentiality of students' records and school data must be maintained.</li>
+              <li>Private paid tutorials for students within the school premises are not allowed without management approval.</li>
+              <li>Staff must participate actively in all school extracurricular activities and meetings.</li>
+              <li>Any form of examination malpractice facilitation will lead to immediate dismissal and prosecution.</li>
+              <li>One month notice is required before resignation, in accordance with labor laws.</li>
+            </ol>
+          </div>
+
+          <div className="flex items-start gap-3 p-4 bg-primary-50 rounded-lg border border-primary-100 mt-4">
+            <input 
+              type="checkbox" 
+              checked={formData.termsAccepted} 
+              onChange={e => setFormData({...formData, termsAccepted: e.target.checked})} 
+              className="w-5 h-5 mt-0.5 accent-primary-600 cursor-pointer"
+            />
+            <label className="text-sm font-bold text-primary-900 block cursor-pointer" onClick={() => setFormData({...formData, termsAccepted: !formData.termsAccepted})}>
+              I have read and agree to abide by the Staff Code of Conduct.
+            </label>
+          </div>
+
+          <div className="pt-2">
+            <InputField 
+              label="Digital Signature (Type Full Name)" 
+              value={formData.signature} 
+              onChange={v => setFormData({...formData, signature: v})} 
+              placeholder="e.g. John Doe" 
+            />
+          </div>
+          {/* New Sections End */}
+
+          <div className="flex gap-3 pt-4">
             <button 
               type="button"
               onClick={() => setShowPreview(true)} 
@@ -228,7 +284,7 @@ const StaffRegister = () => {
               disabled={loading} 
               className="flex-1 btn-primary bg-slate-900 hover:bg-slate-800"
             >
-              {loading ? <Loader2 className="animate-spin"/> : 'Create Staff Account'}
+              {loading ? <Loader2 className="animate-spin"/> : 'Submit Application'}
             </button>
           </div>
         </div>
@@ -296,12 +352,12 @@ const StaffFormPreview = ({ formData }) => (
       </div>
     </div>
 
-    <h2 className="text-center font-bold text-lg mb-6 underline">STAFF REGISTRATION FORM</h2>
+    <h2 className="text-center font-bold text-lg mb-6 underline uppercase">Staff Employment & Registration Form</h2>
 
     <div className="space-y-4">
       <div className="flex border-b border-slate-300 pb-2">
         <span className="font-semibold w-40">Full Name:</span>
-        <span className="flex-1">{formData.fullName || '_______'}</span>
+        <span className="flex-1 font-bold">{formData.fullName || '_______'}</span>
       </div>
       
       <div className="flex border-b border-slate-300 pb-2">
@@ -340,17 +396,27 @@ const StaffFormPreview = ({ formData }) => (
       </div>
     </div>
 
-    <div className="mt-12 pt-8 border-t-2 border-slate-800">
-      <div className="flex justify-between items-end">
-        <div>
-          <p className="text-sm mb-2">Staff Signature:</p>
-          <div className="border-b-2 border-slate-800 pb-1 min-w-[200px]"></div>
-          <p className="text-xs text-slate-500 mt-1">Date: {new Date().toLocaleDateString()}</p>
+    <div className="mb-6 mt-8">
+      <h3 className="font-bold text-base mb-3 underline">(B) ATTESTATION & OATH</h3>
+      <p className="text-sm mb-4 leading-relaxed text-justify">
+        I, <strong>{formData.fullName}</strong>, hereby attest that the information provided above is true and accurate. 
+        I agree to abide by the rules, regulations, and code of conduct of Merit College of Advanced Studies. 
+        I understand that any breach of conduct may lead to disciplinary action or termination of appointment.
+      </p>
+    </div>
+
+    <div className="flex justify-between items-end mt-16 pt-4">
+      <div>
+        <p className="text-xs mb-1 uppercase font-bold text-slate-500">Staff Signature:</p>
+        <div className="font-script text-2xl text-blue-900 border-b-2 border-slate-800 pb-1 min-w-[200px]" style={{fontFamily: 'cursive'}}>
+          {formData.signature}
         </div>
-        <div className="text-right">
-          <p className="text-sm mb-2">Admin Approval</p>
-          <div className="border-b-2 border-slate-800 pb-1 min-w-[200px]"></div>
-        </div>
+        <p className="text-[10px] text-slate-400 mt-1">{new Date().toLocaleDateString()}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-xs mb-8 uppercase font-bold text-slate-500">Management Approval:</p>
+        <div className="border-b-2 border-slate-800 pb-1 min-w-[200px]"></div>
+        <p className="text-[10px] text-slate-400 mt-1">Official Stamp & Date</p>
       </div>
     </div>
   </div>
@@ -368,7 +434,7 @@ const InputField = ({ label, type="text", value, onChange, icon, placeholder }) 
         placeholder={placeholder} 
         required 
       />
-      <div className="absolute left-3 top-3.5 text-slate-400">{icon}</div>
+      {icon && <div className="absolute left-3 top-3.5 text-slate-400">{icon}</div>}
     </div>
   </div>
 );
