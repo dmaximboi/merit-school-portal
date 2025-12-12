@@ -1,6 +1,6 @@
 const supabase = require('../config/supabaseClient');
 
-// 1. GET FULL DASHBOARD STATS
+// 1. DASHBOARD STATS
 exports.getDashboardStats = async (req, res) => {
   try {
     const [students, staff, revenue] = await Promise.all([
@@ -8,9 +8,7 @@ exports.getDashboardStats = async (req, res) => {
       supabase.from('staff').select('id'),
       supabase.from('payments').select('amount').eq('status', 'successful')
     ]);
-
     const totalRevenue = revenue.data?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
-
     res.json({
       totalStudents: students.data?.length || 0,
       totalStaff: staff.data?.length || 0,
@@ -22,64 +20,59 @@ exports.getDashboardStats = async (req, res) => {
         olevel: students.data?.filter(s => s.program_type === 'O-Level').length || 0,
       }
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
 // 2. STUDENT MANAGEMENT
 exports.getAllStudents = async (req, res) => {
   try {
-    // Fetch all details needed for the Admin Table & Print Form
-    const { data, error } = await supabase
-      .from('students')
-      .select('*')
-      .order('created_at', { ascending: false });
-
+    const { data, error } = await supabase.from('students').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
-// Toggle Validation (Activate Portal), Ban, or Parent Access
 exports.updateStudentStatus = async (req, res) => {
   const { studentId, action, value } = req.body; 
-  // action: 'validate', 'suspend', 'parent_access'
-  
   let updateData = {};
   if (action === 'validate') updateData = { is_validated: value };
   if (action === 'suspend') updateData = { is_suspended: value };
   if (action === 'parent_access') updateData = { is_parent_access_enabled: value };
 
   try {
-    const { error } = await supabase
-      .from('students')
-      .update(updateData)
-      .eq('id', studentId);
-
+    const { error } = await supabase.from('students').update(updateData).eq('id', studentId);
     if (error) throw error;
-    res.json({ message: 'Student status updated successfully' });
+    res.json({ message: 'Status updated' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+// --- FIXED: DELETE STUDENT ---
+exports.deleteStudent = async (req, res) => {
+  const { id } = req.params;
+  try {
+    // 1. Delete from Auth (Cascades to DB usually, but safer to do explicit)
+    const { error: authError } = await supabase.auth.admin.deleteUser(id);
+    // Even if auth fails (e.g. user already gone), try deleting DB record
+    
+    // 2. Manual DB Cleanup 
+    const { error: dbError } = await supabase.from('students').delete().eq('id', id);
+    if (dbError) throw dbError;
+    
+    res.json({ message: 'Student permanently deleted' });
   } catch (err) {
+    console.error("Delete Error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
 // 3. SETTINGS & FEES
 exports.updateSystemSettings = async (req, res) => {
-  const { updates } = req.body; // Expects array: [{key: 'fee_jamb', value: '20000'}]
-  
+  const { updates } = req.body; 
   try {
-    const { error } = await supabase
-      .from('system_settings')
-      .upsert(updates);
-
+    const { error } = await supabase.from('system_settings').upsert(updates);
     if (error) throw error;
     res.json({ message: 'Settings updated' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
 exports.getSettings = async (req, res) => {
@@ -87,19 +80,14 @@ exports.getSettings = async (req, res) => {
   res.json(data);
 };
 
-// 4. BROADCAST MESSAGE
+// 4. BROADCAST
 exports.sendBroadcast = async (req, res) => {
   const { title, message, target } = req.body;
   try {
-    const { error } = await supabase
-      .from('announcements')
-      .insert([{ title, message, target_audience: target }]);
-
+    const { error } = await supabase.from('announcements').insert([{ title, message, target_audience: target }]);
     if (error) throw error;
-    res.json({ message: 'Broadcast sent successfully' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json({ message: 'Broadcast sent' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
 // 5. STAFF CODES
