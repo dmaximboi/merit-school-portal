@@ -22,6 +22,7 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [adminToken, setAdminToken] = useState(null);
+  const [adminEmail, setAdminEmail] = useState('');
   
   // Data
   const [stats, setStats] = useState(null);
@@ -34,7 +35,7 @@ const AdminDashboard = () => {
 
   // Results State
   const [selectedStudentForResults, setSelectedStudentForResults] = useState(null);
-  const [studentSubjects, setStudentSubjects] = useState([]); // Dynamic subjects
+  const [studentSubjects, setStudentSubjects] = useState([]);
   const [scoreData, setScoreData] = useState({ subject: '', ca: '', exam: '' });
 
   // Print
@@ -48,6 +49,7 @@ const AdminDashboard = () => {
       if (!session) { navigate('/auth/admin'); return; }
 
       setAdminToken(session.access_token);
+      setAdminEmail(session.user.email);
       login(session.user, session.access_token, 'admin');
       await loadInitialData(session.access_token);
     };
@@ -74,7 +76,7 @@ const AdminDashboard = () => {
         api.get('/schmngt/students', token),
         api.get('/schmngt/dashboard-stats', token),
         api.get('/schmngt/settings', token),
-        api.get('/activity-logs/all', token) // Fetch Logs
+        api.get('/activity-logs/all', token)
       ]);
 
       setStudents(studentsData || []);
@@ -94,17 +96,29 @@ const AdminDashboard = () => {
     if (!confirm(`Are you sure you want to ${action} this student?`)) return;
     try {
       await api.post('/schmngt/update-student', { studentId: id, action, value: !currentValue }, adminToken);
-      loadInitialData(adminToken);
+      await loadInitialData(adminToken);
     } catch (err) { alert('Failed to update status'); }
   };
 
   const deleteStudent = async (id) => {
-    if (!confirm("⚠️ DANGER: This will permanently delete the student and all their data! Are you sure?")) return;
-    // Note: You need to implement this endpoint in adminController if not exists, currently reuse suspend logic or add delete
+    if (!confirm("⚠️ DANGER: This will PERMANENTLY delete the student! Confirm?")) return;
     try {
-       // Assuming you add a DELETE route, for now let's just alert functionality
-       alert("To prevent accidental data loss, please use the Database Console to permanently delete.");
-    } catch (err) { alert('Failed'); }
+       await api.delete(`/schmngt/students/${id}`, adminToken);
+       alert("Student Deleted Successfully");
+       await loadInitialData(adminToken); // Refresh list immediately
+    } catch (err) { alert('Failed to delete: ' + err.message); }
+  };
+
+  const updateFees = async () => {
+    try {
+      const updates = fees.map(f => ({ key: f.key, value: f.value.toString() }));
+      await api.post('/schmngt/settings', { updates }, adminToken);
+      alert('Fees Updated Successfully');
+      
+      // RELOAD DATA TO PERSIST UI
+      const newSettings = await api.get('/schmngt/settings', adminToken);
+      setFees(newSettings || []);
+    } catch (err) { alert('Failed to update fees'); }
   };
 
   const sendBroadcast = async () => {
@@ -118,7 +132,6 @@ const AdminDashboard = () => {
 
   const handleStudentSelectForResult = (student) => {
     setSelectedStudentForResults(student);
-    // Parse subjects from JSONB or array
     let subs = [];
     if (Array.isArray(student.subjects)) subs = student.subjects;
     else if (typeof student.subjects === 'string') subs = JSON.parse(student.subjects);
@@ -160,9 +173,12 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800">
       {/* Sidebar */}
       <aside className="w-64 bg-slate-900 text-white flex flex-col fixed h-full z-20 shadow-2xl">
-        <div className="p-6 border-b border-slate-800">
-          <h1 className="text-xl font-bold tracking-tight">Merit Admin</h1>
-          <p className="text-xs text-slate-400 mt-1">Management Portal</p>
+        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
+           <img src="/meritlogo.jpg" alt="Logo" className="w-8 h-8 object-contain bg-white rounded-full p-0.5"/>
+           <div>
+             <h1 className="text-lg font-bold tracking-tight">Merit Admin</h1>
+             <p className="text-[10px] text-slate-400">Management</p>
+           </div>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <TabBtn icon={<LayoutDashboard/>} label="Overview" active={activeTab==='overview'} onClick={()=>setActiveTab('overview')} />
@@ -189,57 +205,41 @@ const AdminDashboard = () => {
             <p className="text-slate-500">Session 2025/2026 • Term 1</p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="bg-white p-2 px-4 rounded-full shadow-sm border border-slate-200 text-sm font-medium">
-              Admin: <span className="text-blue-600">Super User</span>
-            </div>
+             <div className="text-right">
+                <p className="text-sm font-bold text-slate-700">{adminEmail || "Admin User"}</p>
+                <p className="text-xs text-green-600 font-medium">● Online</p>
+             </div>
+             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold border border-blue-200">
+                A
+             </div>
           </div>
         </header>
 
-        {/* --- OVERVIEW --- */}
         {activeTab === 'overview' && (
-          <div className="space-y-6 animate-fadeIn">
+             <div className="space-y-6 animate-fadeIn">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <StatCard label="Total Students" value={stats?.totalStudents} icon={<Users/>} color="blue" />
               <StatCard label="Paid Revenue" value={`₦${stats?.totalRevenue?.toLocaleString()}`} icon={<DollarSign/>} color="green" />
               <StatCard label="Staff Count" value={stats?.totalStaff} icon={<Shield/>} color="purple" />
               <StatCard label="Pending Approval" value={stats?.pendingValidation} icon={<AlertTriangle/>} color="orange" />
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                <h3 className="font-bold text-lg mb-4">Quick Actions</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={()=>setActiveTab('students')} className="p-4 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition text-left font-bold">Manage Students</button>
-                  <button onClick={()=>setActiveTab('results')} className="p-4 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition text-left font-bold">Upload Results</button>
-                  <button onClick={()=>setActiveTab('broadcast')} className="p-4 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition text-left font-bold">Send Alert</button>
-                  <button onClick={generateStaffCode} className="p-4 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition text-left font-bold">New Staff Token</button>
+             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h3 className="font-bold text-lg mb-4 text-slate-700">Quick Actions</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <button onClick={()=>setActiveTab('students')} className="p-4 bg-slate-50 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition font-medium text-sm border border-slate-100">Manage Students</button>
+                    <button onClick={()=>setActiveTab('results')} className="p-4 bg-slate-50 rounded-lg hover:bg-purple-50 hover:text-purple-700 transition font-medium text-sm border border-slate-100">Upload Results</button>
+                    <button onClick={()=>setActiveTab('broadcast')} className="p-4 bg-slate-50 rounded-lg hover:bg-orange-50 hover:text-orange-700 transition font-medium text-sm border border-slate-100">Send Alert</button>
+                    <button onClick={generateStaffCode} className="p-4 bg-slate-50 rounded-lg hover:bg-green-50 hover:text-green-700 transition font-medium text-sm border border-slate-100">Staff Token</button>
                 </div>
-              </div>
-              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                <h3 className="font-bold text-lg mb-4">Enrollment Breakdown</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center"><span className="text-slate-600">JAMB Students</span> <span className="font-bold">{stats?.breakdown?.jamb}</span></div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div className="bg-blue-500 h-full" style={{width: `${(stats?.breakdown?.jamb / stats?.totalStudents)*100}%`}}></div></div>
-                  
-                  <div className="flex justify-between items-center"><span className="text-slate-600">A-Level Students</span> <span className="font-bold">{stats?.breakdown?.alevel}</span></div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div className="bg-purple-500 h-full" style={{width: `${(stats?.breakdown?.alevel / stats?.totalStudents)*100}%`}}></div></div>
-                </div>
-              </div>
             </div>
           </div>
         )}
 
-        {/* --- ACTIVITY LOGS --- */}
         {activeTab === 'logs' && (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                <tr>
-                  <th className="p-4">Time</th>
-                  <th className="p-4">Student</th>
-                  <th className="p-4">Action</th>
-                  <th className="p-4">Details</th>
-                </tr>
+                <tr><th className="p-4">Time</th><th className="p-4">Student</th><th className="p-4">Action</th><th className="p-4">Details</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {activityLogs.map(log => (
@@ -250,17 +250,11 @@ const AdminDashboard = () => {
                       <div className="text-xs text-slate-400">{log.student_id_text}</div>
                     </td>
                     <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
-                        log.action === 'registered' ? 'bg-blue-100 text-blue-700' : 
-                        log.action === 'payment_completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                      }`}>
+                      <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${log.action.includes('payment') ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                         {log.action.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="p-4 text-xs text-slate-500 font-mono">
-                      IP: {log.ip_address}<br/>
-                      {log.device_info?.substring(0, 30)}...
-                    </td>
+                    <td className="p-4 text-xs font-mono text-slate-500">{log.ip_address}</td>
                   </tr>
                 ))}
               </tbody>
@@ -268,32 +262,18 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* --- STUDENTS --- */}
         {activeTab === 'students' && (
-          <div className="space-y-4 animate-fadeIn">
-            <div className="flex gap-4 mb-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 text-slate-400" size={20}/>
-                <input 
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Search students by name or ID..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+           <div className="space-y-4 animate-fadeIn">
+             <div className="flex gap-4">
+                <div className="relative flex-1">
+                   <Search className="absolute left-3 top-3 text-slate-400" size={18}/>
+                   <input className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Search students..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                </div>
+             </div>
+             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                    <tr>
-                      <th className="p-4">Identity</th>
-                      <th className="p-4">Payment</th>
-                      <th className="p-4">Programme</th>
-                      <th className="p-4">Access</th>
-                      <th className="p-4">Actions</th>
-                    </tr>
+                    <tr><th className="p-4">Identity</th><th className="p-4">Payment</th><th className="p-4">Program</th><th className="p-4">Access</th><th className="p-4">Actions</th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredStudents.map(s => (
@@ -303,59 +283,40 @@ const AdminDashboard = () => {
                           <div className="text-xs text-slate-500 font-mono">{s.student_id_text}</div>
                         </td>
                         <td className="p-4">
-                          {s.payment_status === 'paid' ? (
-                            <span className="flex items-center gap-1 text-green-600 font-bold bg-green-50 px-2 py-1 rounded w-fit">
-                              <CheckCircle size={14}/> Paid
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-red-500 font-bold bg-red-50 px-2 py-1 rounded w-fit">
-                              <XCircle size={14}/> Pending
-                            </span>
-                          )}
+                           {s.payment_status === 'paid' ? 
+                             <span className="flex items-center gap-1 text-green-600 font-bold bg-green-50 px-2 py-1 rounded w-fit"><CheckCircle size={14}/> Paid</span> : 
+                             <span className="flex items-center gap-1 text-red-500 font-bold bg-red-50 px-2 py-1 rounded w-fit"><XCircle size={14}/> Pending</span>
+                           }
                         </td>
                         <td className="p-4 text-slate-600">{s.program_type}</td>
                         <td className="p-4">
-                          <button 
-                            onClick={() => toggleStudentStatus(s.id, 'validate', s.is_validated)}
-                            className={`px-3 py-1 rounded-full text-xs font-bold transition ${s.is_validated ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}
-                          >
-                            {s.is_validated ? 'Active' : 'Locked'}
-                          </button>
+                           <button onClick={() => toggleStudentStatus(s.id, 'validate', s.is_validated)} className={`px-2 py-1 rounded text-xs font-bold ${s.is_validated ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                             {s.is_validated ? 'Active' : 'Locked'}
+                           </button>
                         </td>
                         <td className="p-4 flex gap-2">
                           <button onClick={() => preparePrint(s)} className="p-2 text-blue-600 hover:bg-blue-50 rounded" title="Print Letter"><Printer size={18}/></button>
-                          <button onClick={() => toggleStudentStatus(s.id, 'parent_access', s.is_parent_access_enabled)} className={`p-2 rounded ${s.is_parent_access_enabled ? 'text-green-600' : 'text-slate-400'}`} title="Parent Access"><Users size={18}/></button>
                           <button onClick={() => deleteStudent(s.id)} className="p-2 text-red-500 hover:bg-red-50 rounded" title="Delete"><Trash2 size={18}/></button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
-              </div>
+              </table>
             </div>
           </div>
         )}
 
-        {/* --- RESULTS --- */}
         {activeTab === 'results' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeIn">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-[500px] overflow-y-auto">
-              <h3 className="font-bold mb-4">Select Student</h3>
+              <h3 className="font-bold mb-4 text-lg">Select Student</h3>
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-3 text-slate-400" size={16}/>
-                <input 
-                  className="w-full pl-9 p-2 border rounded-lg text-sm" 
-                  placeholder="Search..."
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
+                <input className="w-full pl-9 p-2 border rounded-lg text-sm" placeholder="Search..." onChange={e => setSearchTerm(e.target.value)} />
               </div>
               <div className="space-y-1">
                 {filteredStudents.map(s => (
-                  <div 
-                    key={s.id} 
-                    onClick={() => handleStudentSelectForResult(s)} 
-                    className={`p-3 rounded-lg cursor-pointer transition ${selectedStudentForResults?.id === s.id ? 'bg-blue-600 text-white' : 'hover:bg-slate-100'}`}
-                  >
+                  <div key={s.id} onClick={() => handleStudentSelectForResult(s)} className={`p-3 rounded-lg cursor-pointer transition ${selectedStudentForResults?.id === s.id ? 'bg-blue-600 text-white' : 'hover:bg-slate-100'}`}>
                     <div className="font-bold">{s.surname} {s.first_name}</div>
                     <div className={`text-xs ${selectedStudentForResults?.id === s.id ? 'text-blue-200' : 'text-slate-500'}`}>{s.student_id_text}</div>
                   </div>
@@ -375,16 +336,11 @@ const AdminDashboard = () => {
 
                 <div>
                   <label className="text-sm font-bold text-slate-700">Subject</label>
-                  <select 
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={scoreData.subject}
-                    onChange={e => setScoreData({...scoreData, subject: e.target.value})}
-                  >
+                  <select className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={scoreData.subject} onChange={e => setScoreData({...scoreData, subject: e.target.value})}>
                     <option value="">Select Registered Subject</option>
                     {studentSubjects.map((sub, idx) => (
                       <option key={idx} value={sub}>{sub}</option>
                     ))}
-                    {/* Fallback general subjects if none registered */}
                     {studentSubjects.length === 0 && (
                       <>
                         <option value="Mathematics">Mathematics</option>
@@ -410,11 +366,7 @@ const AdminDashboard = () => {
                   <span className="font-bold text-lg text-blue-700">Grade: {calculateGrade(Number(scoreData.ca) + Number(scoreData.exam))}</span>
                 </div>
 
-                <button 
-                  onClick={uploadResult}
-                  disabled={!selectedStudentForResults || !scoreData.subject}
-                  className={`w-full py-3 rounded-lg font-bold text-white transition ${!selectedStudentForResults || !scoreData.subject ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
-                >
+                <button onClick={uploadResult} disabled={!selectedStudentForResults || !scoreData.subject} className={`w-full py-3 rounded-lg font-bold text-white transition ${!selectedStudentForResults || !scoreData.subject ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
                   Save Result
                 </button>
               </div>
@@ -422,48 +374,10 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* --- LIBRARY --- */}
         {activeTab === 'library' && (
-          <LibraryView 
-            user={{ id: 'admin', email: adminEmail, full_name: 'Admin' }} 
-            role="admin" 
-            isAdmin={true} 
-            token={adminToken} 
-          />
+          <LibraryView user={{ id: 'admin', email: adminEmail, full_name: 'Admin' }} role="admin" isAdmin={true} token={adminToken} />
         )}
 
-        {/* --- BROADCASTS --- */}
-        {activeTab === 'broadcast' && (
-          <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
-            <h3 className="font-bold text-xl mb-6">Create New Announcement</h3>
-            <div className="space-y-4">
-              <input 
-                className="w-full p-3 border rounded-lg" 
-                placeholder="Title (e.g. Exam Schedule)"
-                value={broadcast.title}
-                onChange={e => setBroadcast({...broadcast, title: e.target.value})}
-              />
-              <textarea 
-                className="w-full p-3 border rounded-lg h-32" 
-                placeholder="Message details..."
-                value={broadcast.message}
-                onChange={e => setBroadcast({...broadcast, message: e.target.value})}
-              />
-              <select 
-                className="w-full p-3 border rounded-lg"
-                value={broadcast.target}
-                onChange={e => setBroadcast({...broadcast, target: e.target.value})}
-              >
-                <option value="all">Everyone</option>
-                <option value="student">Students Only</option>
-                <option value="staff">Staff Only</option>
-              </select>
-              <button onClick={sendBroadcast} className="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700">Send Broadcast</button>
-            </div>
-          </div>
-        )}
-
-        {/* --- SETTINGS --- */}
         {activeTab === 'settings' && (
           <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
             <h3 className="font-bold text-xl mb-6">System Fees</h3>
@@ -471,29 +385,20 @@ const AdminDashboard = () => {
               {fees.map((fee, idx) => (
                 <div key={idx} className="flex justify-between items-center p-4 bg-slate-50 rounded">
                   <span className="font-medium capitalize">{fee.key.replace('fee_', '')} Fee</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-500">₦</span>
-                    <input 
-                      type="number" 
-                      className="border p-2 rounded w-32"
-                      value={fee.value}
+                  <input type="number" className="border p-2 rounded w-32" value={fee.value}
                       onChange={(e) => {
                         const newFees = [...fees];
                         newFees[idx].value = e.target.value;
                         setFees(newFees);
                       }}
-                    />
-                  </div>
+                  />
                 </div>
               ))}
-              <button onClick={() => alert("Fees updated!")} className="mt-4 px-6 py-2 bg-blue-900 text-white rounded hover:bg-blue-800">Save Changes</button>
+              <button onClick={updateFees} className="mt-4 px-6 py-2 bg-blue-900 text-white rounded hover:bg-blue-800">Save Changes</button>
             </div>
           </div>
         )}
-
       </main>
-
-      {/* Hidden Print Component */}
       <div style={{ display: "none" }}>
         <AdmissionLetter ref={printRef} student={printData} />
       </div>
@@ -501,28 +406,24 @@ const AdminDashboard = () => {
   );
 };
 
-// Helpers
+// --- Helper Components ---
 const TabBtn = ({ icon, label, active, onClick }) => (
-  <button 
-    onClick={onClick} 
-    className={`flex items-center gap-3 px-4 py-3 rounded-lg w-full text-left transition-colors mb-1 ${active ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-  >
+  <button onClick={onClick} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg w-full text-left transition-colors mb-1 ${active ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
     {icon} <span className="font-medium text-sm">{label}</span>
   </button>
 );
 
-const StatCard = ({ label, value, icon, color }) => {
-  const colors = { blue: 'text-blue-600 bg-blue-50', green: 'text-green-600 bg-green-50', purple: 'text-purple-600 bg-purple-50', orange: 'text-orange-600 bg-orange-50' };
-  return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-      <div>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{label}</p>
-        <p className="text-2xl font-black text-slate-900 mt-1">{value || 0}</p>
+const StatCard = ({ label, value, icon, color }) => (
+    <div className={`bg-white p-6 rounded-xl shadow-sm border border-slate-100`}>
+      <div className="flex justify-between items-start">
+        <div>
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">{label}</div>
+          <div className="text-2xl font-black text-slate-900 mt-2">{value || 0}</div>
+        </div>
+        <div className={`p-3 rounded-full bg-${color}-50 text-${color}-600`}>{icon}</div>
       </div>
-      <div className={`p-3 rounded-full ${colors[color]}`}>{icon}</div>
     </div>
-  );
-};
+);
 
 const calculateGrade = (total) => {
   if (total >= 70) return 'A';
