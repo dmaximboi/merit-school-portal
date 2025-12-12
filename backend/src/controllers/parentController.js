@@ -4,45 +4,50 @@ exports.parentLogin = async (req, res) => {
   const { studentId, password } = req.body;
 
   try {
-    // Force trim and cleanup
+    // 1. Sanitize Input
     const cleanId = studentId ? studentId.trim() : "";
 
-    console.log(`Checking Parent Login for ID: "${cleanId}"`);
+    console.log(`Parent trying to login with ID: "${cleanId}"`);
 
-    // 1. Find student using 'ilike' (Case Insensitive) and 'maybeSingle'
+    // 2. Simple, Direct Lookup (Removed the complex 'profiles' join)
     const { data: student, error } = await supabase
       .from('students')
-      .select('*, profiles:id(full_name)')
-      .ilike('student_id_text', cleanId) 
+      .select('*') // Just get student data directly
+      .ilike('student_id_text', cleanId)
       .maybeSingle();
 
     if (error) {
-       console.error("DB Error:", error);
-       return res.status(500).json({ error: "Database error" });
+        console.error("Parent Login DB Error:", error);
+        // Return 500 but with a clearer message
+        return res.status(500).json({ error: "System Error: Could not search student records." });
     }
 
     if (!student) {
       return res.status(404).json({ error: `Student ID "${cleanId}" not found. Please check the admission letter.` });
     }
 
-    // 2. Check Password (Surname or Hash)
+    // 3. Password Validation (Surname or Custom Password)
     const surname = student.surname || "";
-    const cleanPass = password.trim().toLowerCase();
+    const cleanPass = password ? password.trim().toLowerCase() : "";
     const cleanSurname = surname.trim().toLowerCase();
 
+    // Check 1: Does password match Surname? (Case-insensitive)
     const isSurnameMatch = cleanSurname === cleanPass;
+    
+    // Check 2: Does password match custom parent password? (If set)
     const isHashMatch = student.parent_password_hash && student.parent_password_hash === password;
 
     if (!isSurnameMatch && !isHashMatch) {
-      return res.status(401).json({ error: `Invalid Password. Try using the surname: ${surname}` });
+      return res.status(401).json({ error: `Invalid Password. Please use the Student's Surname (e.g., "${surname}").` });
     }
 
-    // 3. Success
+    // 4. Successful Login Response
     res.json({
       message: 'Parent Access Granted',
       student: {
         id: student.id,
-        full_name: student.profiles?.full_name || student.surname,
+        // Use local names since we didn't join profiles
+        full_name: `${student.surname} ${student.first_name}`, 
         student_id: student.student_id_text,
         department: student.department,
         program_type: student.program_type
@@ -50,7 +55,7 @@ exports.parentLogin = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Parent Login Error:', err);
-    res.status(500).json({ error: 'Server Error' });
+    console.error('Parent Login Critical Error:', err);
+    res.status(500).json({ error: 'Server Connection Failed' });
   }
 };
