@@ -1,106 +1,79 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Briefcase, Lock, Users, ArrowLeft } from 'lucide-react';
+import { GraduationCap, UserCog, Lock, Users, ArrowLeft, School } from 'lucide-react';
 
 const LoginSelection = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Background Decoration */}
-      <div className="absolute top-0 left-0 w-full h-64 bg-blue-900 rounded-b-[50px] -z-10" />
-      
-      <div className="max-w-5xl w-full">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-extrabold text-white mb-4 tracking-tight">Select Your Portal</h1>
-          <p className="text-blue-100 text-lg max-w-2xl mx-auto">
-            Welcome to the Merit College System. Please choose your role below to securely access your dashboard.
-          </p>
+    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
+      <div className="max-w-lg w-full">
+        
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-blue-900 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg transform -rotate-6">
+            <School className="text-white w-8 h-8" />
+          </div>
+          <h1 className="text-3xl font-black text-slate-900 mb-2">Portal Access</h1>
+          <p className="text-slate-500 text-sm">Select your account type to proceed</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-4">
+        {/* Keypad Grid Layout */}
+        <div className="grid grid-cols-2 gap-3 bg-white p-3 rounded-3xl shadow-xl border border-slate-200">
           <LoginCard 
-            title="Student Portal" 
-            desc="Access your dashboard, check academic results, and print admission letters."
-            icon={<GraduationCap size={32} />}
+            title="Student" 
+            icon={<GraduationCap size={28} />}
             onClick={() => navigate('/auth/student')}
-            color="blue"
+            color="bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white"
           />
-          
           <LoginCard 
-            title="Staff Portal" 
-            desc="Manage classes, input grades, and access staff resources."
-            icon={<Briefcase size={32} />}
+            title="Staff" 
+            icon={<UserCog size={28} />} // Changed Icon as requested
             onClick={() => navigate('/auth/staff')}
-            color="purple"
+            color="bg-purple-50 text-purple-700 hover:bg-purple-600 hover:text-white"
           />
-          
-           <LoginCard 
-            title="Parent Portal" 
-            desc="Monitor your ward's academic performance and verify fee payments."
-            icon={<Users size={32} />}
-            onClick={() => navigate('/auth/parent')}
-            color="teal"
-          />
-          
           <LoginCard 
-            title="Admin Access" 
-            desc="System configuration, user management, and administrative controls."
-            icon={<Lock size={32} />}
+            title="Parent" 
+            icon={<Users size={28} />}
+            onClick={() => navigate('/auth/parent')}
+            color="bg-teal-50 text-teal-700 hover:bg-teal-600 hover:text-white"
+          />
+          <LoginCard 
+            title="Admin" 
+            icon={<Lock size={28} />}
             onClick={() => navigate('/auth/admin')}
-            color="red"
+            color="bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white"
           />
         </div>
-        
-        <div className="mt-12 text-center">
-            <button 
-                onClick={() => navigate('/')} 
-                className="inline-flex items-center gap-2 text-slate-500 font-semibold hover:text-blue-900 transition-colors py-2 px-4 rounded-lg hover:bg-slate-200"
-            >
-                <ArrowLeft size={18} /> Back to Homepage
-            </button>
+
+        {/* Back Button */}
+        <div className="mt-8 text-center">
+          <button 
+            onClick={() => navigate('/')} 
+            className="text-slate-400 hover:text-slate-700 font-medium text-sm flex items-center justify-center gap-2 transition-colors"
+          >
+            <ArrowLeft size={16} /> Back to Home
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-const LoginCard = ({ title, desc, icon, onClick, color }) => {
-    // Color configurations for dynamic styling
-    const themes = {
-        blue:   { bg: "bg-blue-50",   text: "text-blue-700",   border: "border-blue-200",   hover: "group-hover:bg-blue-600 group-hover:text-white" },
-        purple: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200", hover: "group-hover:bg-purple-600 group-hover:text-white" },
-        teal:   { bg: "bg-teal-50",   text: "text-teal-700",   border: "border-teal-200",   hover: "group-hover:bg-teal-600 group-hover:text-white" },
-        red:    { bg: "bg-red-50",    text: "text-red-700",    border: "border-red-200",    hover: "group-hover:bg-red-600 group-hover:text-white" },
-    };
-
-    const theme = themes[color] || themes.blue;
-
-    return (
-        <button 
-            onClick={onClick}
-            className={`
-                relative bg-white p-8 rounded-2xl shadow-sm border ${theme.border}
-                hover:shadow-xl hover:-translate-y-1 transition-all duration-300
-                text-left group w-full flex flex-col items-start h-full
-            `}
-        >
-            <div className={`
-                mb-6 p-4 rounded-xl ${theme.bg} ${theme.text} 
-                ${theme.hover} transition-colors duration-300 shadow-sm
-            `}>
-                {icon}
-            </div>
-            
-            <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-blue-900 transition-colors">
-                {title}
-            </h3>
-            
-            <p className="text-slate-500 leading-relaxed text-sm">
-                {desc}
-            </p>
-        </button>
-    );
-};
+const LoginCard = ({ title, icon, onClick, color }) => (
+  <button 
+    onClick={onClick}
+    className={`
+      flex flex-col items-center justify-center 
+      aspect-square rounded-2xl transition-all duration-300
+      ${color} group
+    `}
+  >
+    <div className="mb-3 transform group-hover:scale-110 transition-transform duration-300">
+      {icon}
+    </div>
+    <span className="font-bold text-sm uppercase tracking-wider">{title}</span>
+  </button>
+);
 
 export default LoginSelection;
