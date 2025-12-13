@@ -1,6 +1,5 @@
 const supabase = require('../config/supabaseClient');
 
-// 1. Verify Admin (Strict)
 const verifyAdmin = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -13,7 +12,6 @@ const verifyAdmin = async (req, res, next) => {
 
     const email = user.email.trim().toLowerCase();
 
-    // Check Allowlist
     const { data: adminEntry } = await supabase
       .from('admin_allowlist')
       .select('email')
@@ -25,14 +23,15 @@ const verifyAdmin = async (req, res, next) => {
     }
 
     req.user = user;
+    req.role = 'admin'; 
     next();
 
   } catch (err) {
-    res.status(500).json({ error: 'Auth Error' });
+    console.error("Admin Auth Error:", err);
+    res.status(500).json({ error: 'Server Authentication Error' });
   }
 };
 
-// 2. Verify Staff OR Admin (Flexible)
 const verifyStaff = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -45,36 +44,38 @@ const verifyStaff = async (req, res, next) => {
 
     const email = user.email.trim().toLowerCase();
 
-    // --- STEP A: CHECK IF ADMIN (Admins can do everything Staff can) ---
+    // A. Check if Admin (Admins are automatically allowed)
     const { data: adminEntry } = await supabase
       .from('admin_allowlist')
       .select('email')
       .ilike('email', email)
       .maybeSingle();
 
-    if (adminEntry) {
-      req.user = user;
-      req.role = 'admin'; // Mark as admin
-      return next(); // <--- ADMINS PASS HERE
-    }
-
-    // --- STEP B: IF NOT ADMIN, CHECK STAFF TABLE ---
-    const { data: staffProfile, error: staffError } = await supabase
+    // B. Check if Staff (Fetch profile even if Admin, to get department/name)
+    const { data: staffProfile } = await supabase
       .from('staff')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (staffError || !staffProfile) {
-      return res.status(403).json({ error: 'Access Denied: You are not Staff or Admin.' });
+    if (adminEntry) {
+      req.user = user;
+      req.role = 'admin';
+      if (staffProfile) req.staff = staffProfile; 
+      return next(); 
     }
 
-    req.user = user;
-    req.role = 'staff';
-    next(); // <--- STAFF PASS HERE
+    if (staffProfile) {
+      req.user = user;
+      req.role = 'staff';
+      req.staff = staffProfile;
+      return next();
+    }
+
+    return res.status(403).json({ error: 'Access Denied: You are not Staff.' });
 
   } catch (err) {
-    console.error('Auth Middleware Error:', err);
+    console.error('Staff Auth Error:', err);
     return res.status(500).json({ error: 'Server Authentication Error' });
   }
 };
