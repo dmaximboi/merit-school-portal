@@ -8,7 +8,7 @@ import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
 import { 
   LayoutDashboard, BookOpen, CreditCard, User, LogOut, 
   Bell, Calendar, Lock, AlertCircle, CheckCircle, ExternalLink, 
-  Printer, Shield, Menu, X, FileText, Book, FileCheck, Download, Share2, AlertTriangle, Loader2
+  Printer, ChevronRight, Shield, Menu, X, FileText, Book, FileCheck, Download, Share2, AlertTriangle, Loader2
 } from 'lucide-react';
 import AdmissionLetter from '../../components/shared/AdmissionLetter';
 import LibraryView from '../../components/shared/LibraryView';
