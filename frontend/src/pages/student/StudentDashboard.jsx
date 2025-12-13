@@ -1,4 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+{
+type: "file_content_replacement",
+fileName: "uhhghhujbh/merit-school-portal/merit-school-portal-a4a74196d9139b068ba5538c081690a51cba6ee2/frontend/src/pages/student/StudentDashboard.jsx",
+fullContent: `import React, { useEffect, useState, useRef } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +11,8 @@ import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
 import { 
   LayoutDashboard, BookOpen, CreditCard, User, LogOut, 
   Bell, Calendar, Lock, AlertCircle, CheckCircle, ExternalLink, 
-  Printer, ChevronRight, Shield, Menu, X, FileText, Book, FileCheck, Download, Share2, AlertTriangle, Loader2
+  Printer, Shield, Menu, X, FileText, Book, FileCheck, Download, Share2, 
+  AlertTriangle, Loader2, ChevronRight 
 } from 'lucide-react';
 import AdmissionLetter from '../../components/shared/AdmissionLetter';
 import LibraryView from '../../components/shared/LibraryView';
@@ -35,14 +39,14 @@ const StudentDashboard = () => {
   // --- PRINT HANDLERS ---
   const handleAdmissionPrint = useReactToPrint({ 
     contentRef: admissionPrintRef,
-    documentTitle: `Admission_Letter_${profile?.surname || 'Student'}`,
-    pageStyle: `@page { size: A4; margin: 0; } @media print { body { -webkit-print-color-adjust: exact; } }`
+    documentTitle: \`Admission_Letter_\${profile?.surname || 'Student'}\`,
+    pageStyle: \`@page { size: A4; margin: 0; } @media print { body { -webkit-print-color-adjust: exact; } }\`
   });
 
   const handleReportPrint = useReactToPrint({
     contentRef: reportPrintRef,
-    documentTitle: `Report_Card_${profile?.surname || 'Student'}`,
-    pageStyle: `@page { size: A4; margin: 10mm; } @media print { body { -webkit-print-color-adjust: exact; } }`
+    documentTitle: \`Report_Card_\${profile?.surname || 'Student'}\`,
+    pageStyle: \`@page { size: A4; margin: 10mm; } @media print { body { -webkit-print-color-adjust: exact; } }\`
   });
 
   // --- DOWNLOAD HANDLERS ---
@@ -51,7 +55,7 @@ const StudentDashboard = () => {
       if(!ref.current) return;
       const canvas = await html2canvas(ref.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 850 });
       const link = document.createElement('a');
-      link.download = `${filename}.png`;
+      link.download = \`\${filename}.png\`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (err) { alert('Download failed. Please try Printing to PDF instead.'); }
@@ -62,7 +66,7 @@ const StudentDashboard = () => {
       if(!ref.current) return;
       const canvas = await html2canvas(ref.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
       canvas.toBlob(async (blob) => {
-        const file = new File([blob], `${title}.png`, { type: 'image/png' });
+        const file = new File([blob], \`\${title}.png\`, { type: 'image/png' });
         if (navigator.share && navigator.canShare({ files: [file] })) {
           await navigator.share({ files: [file], title: title });
         } else { alert('Share not supported on this device.'); }
@@ -82,10 +86,10 @@ const StudentDashboard = () => {
       if (user?.id) {
         // Parallel Fetch for Speed
         const [profileData, msgData, feeData, resultsData] = await Promise.all([
-          api.get(`/students/profile/${user.id}`, token),
-          api.get(`/students/announcements`, token),
-          api.get(`/students/fees`, token),
-          api.get(`/results/${user.id}`, token)
+          api.get(\`/students/profile/\${user.id}\`, token),
+          api.get(\`/students/announcements\`, token),
+          api.get(\`/students/fees\`, token),
+          api.get(\`/results/\${user.id}\`, token)
         ]);
         
         setProfile(profileData);
@@ -113,18 +117,18 @@ const StudentDashboard = () => {
 
   const flutterwaveConfig = {
     public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
-    tx_ref: `MCAS-${Date.now()}-${user?.id}`,
+    tx_ref: \`MCAS-\${Date.now()}-\${user?.id}\`,
     amount: amount,
     currency: 'NGN',
     payment_options: 'card,mobilemoney,ussd,banktransfer',
     customer: {
       email: profile?.email || '',
       phone_number: profile?.phone_number || '',
-      name: `${profile?.surname || ''} ${profile?.first_name || ''}`,
+      name: \`\${profile?.surname || ''} \${profile?.first_name || ''}\`,
     },
     customizations: {
       title: 'Merit College Tuition',
-      description: `${profile?.program_type} Tuition Fee`,
+      description: \`\${profile?.program_type} Tuition Fee\`,
       logo: 'https://meritcollege.vercel.app/meritlogo.jpg',
     },
   };
@@ -136,22 +140,37 @@ const StudentDashboard = () => {
     
     handleFlutterPayment({
       callback: async (response) => {
-        closePaymentModal();
-        if (response.status === "successful") {
+        closePaymentModal(); // Close modal immediately
+        
+        console.log("Flutterwave Response:", response); // DEBUGGING
+
+        // Robust check for success and ID
+        if (response.status === "successful" || response.status === "success") {
+          const txId = response.transaction_id || response.id; // Handle both ID formats
+          
+          if (!txId) {
+            alert("Payment successful but Transaction ID missing. Please contact admin.");
+            return;
+          }
+
           try {
+            console.log("Verifying Payment ID:", txId);
             await api.post('/students/verify-payment', {
-              transaction_id: response.transaction_id,
+              transaction_id: txId,
               student_id: user.id
             }, token);
             
-            alert("Payment Successful! Refreshing your dashboard...");
+            alert("Payment Verified Successfully! Refreshing your dashboard...");
             loadDashboardData(); // Auto-refresh to unlock features
           } catch (err) {
-            alert("Payment completed but verification pending. Please contact admin.");
+            console.error("Verification Error:", err);
+            alert(\`Payment completed but verification failed: \${err.message}. Please contact admin with ID: \${txId}\`);
           }
+        } else {
+          console.warn("Payment not successful:", response);
         }
       },
-      onClose: () => {},
+      onClose: () => console.log("Payment modal closed"),
     });
   };
 
@@ -169,7 +188,7 @@ const StudentDashboard = () => {
 
   // --- DATA PROCESSING ---
   const groupedResults = results.reduce((groups, r) => {
-    const key = `${r.session} - ${r.term}`; // e.g. "2025/2026 - First Term"
+    const key = \`\${r.session} - \${r.term}\`; // e.g. "2025/2026 - First Term"
     if (!groups[key]) groups[key] = [];
     groups[key].push(r);
     return groups;
@@ -193,11 +212,11 @@ const StudentDashboard = () => {
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800">
       
       {/* --- SIDEBAR --- */}
-      <aside className={`
+      <aside className={\`
         fixed md:static inset-y-0 left-0 z-40 w-72 bg-blue-900 text-white shadow-2xl 
         transform transition-transform duration-300 ease-in-out 
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col
-      `}>
+        \${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col
+      \`}>
         {/* Header */}
         <div className="p-6 border-b border-blue-800 flex items-center gap-3 bg-blue-950">
           <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center overflow-hidden border-2 border-blue-200">
@@ -300,7 +319,7 @@ const StudentDashboard = () => {
         <header className="hidden md:flex justify-between items-end mb-10 border-b border-slate-200 pb-6">
            <div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-                 {activeTab === 'overview' ? `Hello, ${profile?.first_name}!` : 
+                 {activeTab === 'overview' ? \`Hello, \${profile?.first_name}!\` : 
                   activeTab === 'courses' ? 'My Registered Courses' :
                   activeTab === 'report' ? 'Academic Results' :
                   activeTab === 'payments' ? 'Financial Center' : 'Digital Library'}
@@ -338,13 +357,13 @@ const StudentDashboard = () => {
                  )}
 
                  {/* Admission Letter Card */}
-                 <div className={`bg-white p-8 rounded-2xl shadow-soft border border-slate-200 relative overflow-hidden ${isFeatureLocked ? 'opacity-60 pointer-events-none grayscale' : ''}`}>
+                 <div className={\`bg-white p-8 rounded-2xl shadow-soft border border-slate-200 relative overflow-hidden \${isFeatureLocked ? 'opacity-60 pointer-events-none grayscale' : ''}\`}>
                     <div className="absolute top-0 right-0 p-6 opacity-5"><FileText size={120}/></div>
                     <h3 className="font-bold text-xl text-slate-900 mb-2">Admission Letter</h3>
                     <p className="text-slate-500 mb-6 max-w-md">Download your official provisional admission letter for the 2025/2026 academic session.</p>
                     <div className="flex flex-wrap gap-3">
                        <button onClick={handleAdmissionPrint} className="btn-primary flex items-center gap-2"><Printer size={18}/> Print PDF</button>
-                       <button onClick={() => handleDownload(admissionPrintRef, `Admission_${profile?.surname}`)} className="btn-secondary flex items-center gap-2"><Download size={18}/> Download</button>
+                       <button onClick={() => handleDownload(admissionPrintRef, \`Admission_\${profile?.surname}\`)} className="btn-secondary flex items-center gap-2"><Download size={18}/> Download</button>
                     </div>
                  </div>
 
@@ -420,7 +439,7 @@ const StudentDashboard = () => {
                  <h2 className="font-bold text-lg flex items-center gap-2"><FileCheck className="text-green-600"/> Academic Records</h2>
                  <div className="flex gap-2">
                     <button onClick={handleReportPrint} disabled={results.length===0} className="btn-primary text-sm flex items-center gap-2 py-2"><Printer size={16}/> Print Report</button>
-                    <button onClick={() => handleDownload(reportPrintRef, `Report_${profile?.surname}`)} disabled={results.length===0} className="btn-secondary text-sm flex items-center gap-2 py-2"><Download size={16}/> Save Image</button>
+                    <button onClick={() => handleDownload(reportPrintRef, \`Report_\${profile?.surname}\`)} disabled={results.length===0} className="btn-secondary text-sm flex items-center gap-2 py-2"><Download size={16}/> Save Image</button>
                  </div>
               </div>
 
@@ -454,7 +473,7 @@ const StudentDashboard = () => {
                                    <td className="p-4 text-center text-slate-500">{r.ca_score}</td>
                                    <td className="p-4 text-center text-slate-500">{r.exam_score}</td>
                                    <td className="p-4 text-center font-black text-slate-900">{r.total_score}</td>
-                                   <td className="p-4 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${['F'].includes(r.grade) ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{r.grade}</span></td>
+                                   <td className="p-4 text-center"><span className={\`px-2 py-1 rounded text-xs font-bold \${['F'].includes(r.grade) ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}\`}>{r.grade}</span></td>
                                    <td className="p-4 text-center text-xs text-slate-500 italic">{r.grade === 'F' ? 'Fail' : 'Pass'}</td>
                                 </tr>
                              ))}
@@ -479,7 +498,7 @@ const StudentDashboard = () => {
                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 mb-8">
                     <p className="text-sm text-slate-500 uppercase tracking-wider mb-1">Total Fee</p>
                     <p className="text-4xl font-black text-slate-900">₦{amount.toLocaleString()}</p>
-                    <div className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold ${isPaymentLocked ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                    <div className={\`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold \${isPaymentLocked ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}\`}>
                        {isPaymentLocked ? <AlertCircle size={14}/> : <CheckCircle size={14}/>}
                        {isPaymentLocked ? 'PAYMENT PENDING' : 'CLEARED'}
                     </div>
@@ -528,13 +547,13 @@ const SidebarItem = ({ icon, label, active, onClick, locked }) => (
   <button 
     onClick={onClick} 
     disabled={locked}
-    className={`
+    className={\`
       flex items-center gap-3 px-4 py-3 rounded-xl w-full text-left transition-all duration-200 mb-1 group
-      ${active ? 'bg-blue-500 text-white shadow-lg' : 'text-blue-100 hover:bg-blue-800 hover:text-white'}
-      ${locked ? 'opacity-50 cursor-not-allowed' : ''}
-    `}
+      \${active ? 'bg-blue-500 text-white shadow-lg' : 'text-blue-100 hover:bg-blue-800 hover:text-white'}
+      \${locked ? 'opacity-50 cursor-not-allowed' : ''}
+    \`}
   >
-    <div className={`transition-transform ${active ? 'scale-110' : 'group-hover:scale-110'}`}>{icon}</div>
+    <div className={\`transition-transform \${active ? 'scale-110' : 'group-hover:scale-110'}\`}>{icon}</div>
     <span className="font-medium text-sm flex-1">{label}</span>
     {locked && <Lock size={14} className="text-blue-300"/>}
     {active && !locked && <ChevronRight size={16} className="opacity-50"/>}
@@ -549,7 +568,7 @@ const StatusBadge = ({ icon: Icon, label, color }) => {
     blue: 'bg-blue-50 text-blue-700 border-blue-200'
   };
   return (
-    <div className={`px-4 py-2 rounded-xl border flex items-center gap-2 ${colors[color]}`}>
+    <div className={\`px-4 py-2 rounded-xl border flex items-center gap-2 \${colors[color]}\`}>
       <Icon size={16} />
       <div>
         <span className="block text-[10px] uppercase font-bold opacity-70">Status</span>
@@ -560,3 +579,5 @@ const StatusBadge = ({ icon: Icon, label, color }) => {
 };
 
 export default StudentDashboard;
+`
+}
