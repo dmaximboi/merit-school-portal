@@ -1,65 +1,64 @@
 const supabase = require('../config/supabaseClient');
 
+// 1. Verify Admin (Strict)
 const verifyAdmin = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader) {
-      return res.status(401).json({ error: 'No authorization token provided' });
-    }
+    if (!authHeader) return res.status(401).json({ error: 'No token provided' });
 
     const token = authHeader.split(' ')[1];
-
-    // 1. Verify token with Supabase Auth
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
-    if (error || !user) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
-    }
+    if (error || !user) return res.status(401).json({ error: 'Invalid token' });
 
     const email = user.email.trim().toLowerCase();
 
-    // 2. Check Database Allowlist (Case Insensitive)
-    const { data: adminEntry, error: dbError } = await supabase
+    // Check Allowlist
+    const { data: adminEntry } = await supabase
       .from('admin_allowlist')
       .select('email')
       .ilike('email', email)
-      .single();
+      .maybeSingle();
 
-    if (dbError || !adminEntry) {
-      console.warn(`⛔ Blocked Admin Access: ${email}`);
-      return res.status(403).json({ error: 'Access Denied: You are not an Administrator.' });
+    if (!adminEntry) {
+      return res.status(403).json({ error: 'Access Denied: Not an Administrator.' });
     }
 
-    console.log(`✅ Admin Authorized: ${email}`);
     req.user = user;
     next();
 
   } catch (err) {
-    console.error('Middleware Error:', err);
-    return res.status(500).json({ error: 'Server Authentication Error' });
+    res.status(500).json({ error: 'Auth Error' });
   }
 };
 
-// NEW: Verify Staff Middleware
+// 2. Verify Staff OR Admin (Flexible)
 const verifyStaff = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader) {
-      return res.status(401).json({ error: 'No authorization token provided' });
-    }
+    if (!authHeader) return res.status(401).json({ error: 'No token provided' });
 
     const token = authHeader.split(' ')[1];
-
-    // Verify token with Supabase Auth
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
-    if (error || !user) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
+    if (error || !user) return res.status(401).json({ error: 'Invalid token' });
+
+    const email = user.email.trim().toLowerCase();
+
+    // --- STEP A: CHECK IF ADMIN (Admins can do everything Staff can) ---
+    const { data: adminEntry } = await supabase
+      .from('admin_allowlist')
+      .select('email')
+      .ilike('email', email)
+      .maybeSingle();
+
+    if (adminEntry) {
+      req.user = user;
+      req.role = 'admin'; // Mark as admin
+      return next(); // <--- ADMINS PASS HERE
     }
 
-    // Check if user has staff profile
+    // --- STEP B: IF NOT ADMIN, CHECK STAFF TABLE ---
     const { data: staffProfile, error: staffError } = await supabase
       .from('staff')
       .select('*')
@@ -67,16 +66,15 @@ const verifyStaff = async (req, res, next) => {
       .single();
 
     if (staffError || !staffProfile) {
-      return res.status(403).json({ error: 'Access Denied: Staff profile not found.' });
+      return res.status(403).json({ error: 'Access Denied: You are not Staff or Admin.' });
     }
 
-    console.log(`✅ Staff Authorized: ${staffProfile.full_name}`);
     req.user = user;
-    req.staff = staffProfile;
-    next();
+    req.role = 'staff';
+    next(); // <--- STAFF PASS HERE
 
   } catch (err) {
-    console.error('Staff Middleware Error:', err);
+    console.error('Auth Middleware Error:', err);
     return res.status(500).json({ error: 'Server Authentication Error' });
   }
 };
