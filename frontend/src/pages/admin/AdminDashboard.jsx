@@ -1,7 +1,4 @@
-{
-type: "file_content_replacement",
-fileName: "uhhghhujbh/merit-school-portal/merit-school-portal-675c0c3d49e75d4a1e42401987f35491d5dd079e/frontend/src/pages/admin/AdminDashboard.jsx",
-fullContent: `import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 // REMOVED: Unused Supabase client import which caused the issue
@@ -730,5 +727,3 @@ const calculateGrade = (total) => {
 };
 
 export default AdminDashboard;
-`
-}
