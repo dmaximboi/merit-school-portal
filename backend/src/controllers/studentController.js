@@ -1,11 +1,18 @@
 const supabase = require('../config/supabaseClient');
 
-// ... (Keep existing getStudentProfile and getAnnouncements functions) ...
-
-// 1. GET STUDENT PROFILE
+// 1. GET STUDENT PROFILE (SECURED)
 exports.getStudentProfile = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // --- SECURITY: BOLA CHECK ---
+    // Ensure the requester is either the owner OR an admin
+    // req.user is populated by the authMiddleware
+    if (req.user.id !== id && req.role !== 'admin') {
+        console.warn(`UNAUTHORIZED ACCESS ATTEMPT: User ${req.user.id} tried to view ${id}`);
+        return res.status(403).json({ error: 'Access Denied: You can only view your own profile.' });
+    }
+
     const { data: student, error } = await supabase
       .from('students')
       .select('*')
@@ -22,6 +29,7 @@ exports.getStudentProfile = async (req, res) => {
   }
 };
 
+// ... (Keep the rest of the controller: getAnnouncements, verifyPayment, etc.) ...
 // 2. GET ANNOUNCEMENTS
 exports.getAnnouncements = async (req, res) => {
   try {
@@ -40,30 +48,34 @@ exports.getAnnouncements = async (req, res) => {
   }
 };
 
-// 3. *** SECURE PAYMENT VERIFICATION (UPDATED) ***
+// 3. *** SECURE PAYMENT VERIFICATION ***
 exports.verifyPayment = async (req, res) => {
   const { transaction_id, student_id } = req.body;
+
+  // --- SECURITY: BOLA CHECK FOR PAYMENTS ---
+  // A student should not be able to verify a payment for someone else
+  if (req.user.id !== student_id && req.role !== 'admin') {
+      return res.status(403).json({ error: "Access Denied: Cannot process payment for another student." });
+  }
 
   if (!transaction_id || !student_id) {
     return res.status(400).json({ error: "Missing transaction details" });
   }
   
   try {
-    // --- STEP A: REPLAY ATTACK CHECK ---
-    // Check if this transaction ID already exists in our payments table
+    // A. Check Replay Attack
     const { data: existingPayment } = await supabase
         .from('payments')
         .select('id')
-        .eq('reference', transaction_id.toString()) // Flutterwave ID or Tx Ref
+        .eq('reference', transaction_id.toString())
         .eq('status', 'successful')
         .maybeSingle();
 
     if (existingPayment) {
-        console.warn(`REPLAY ATTACK BLOCKED: Transaction ${transaction_id} already used.`);
         return res.status(409).json({ error: "This transaction has already been used." });
     }
 
-    // --- STEP B: Verify with Flutterwave ---
+    // B. Verify with Flutterwave
     const flwUrl = `https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`;
     const response = await fetch(flwUrl, {
         method: 'GET',
@@ -81,7 +93,7 @@ exports.verifyPayment = async (req, res) => {
 
     const { amount, currency, tx_ref } = flwData.data;
 
-    // --- STEP C: Validate Student & Fee ---
+    // C. Fetch Student & System Settings
     const { data: student, error: studentError } = await supabase
         .from('students')
         .select('*')
@@ -90,10 +102,7 @@ exports.verifyPayment = async (req, res) => {
         
     if (!student) return res.status(404).json({ error: "Student record not found." });
 
-    const { data: settings, error: settingsError } = await supabase
-        .from('system_settings')
-        .select('*');
-        
+    const { data: settings, error: settingsError } = await supabase.from('system_settings').select('*');
     if (settingsError) throw settingsError;
 
     let expectedFee = 0;
@@ -101,35 +110,18 @@ exports.verifyPayment = async (req, res) => {
     else if (student.program_type === 'A-Level') expectedFee = Number(settings.find(s => s.key === 'fee_alevel')?.value || 0);
     else expectedFee = Number(settings.find(s => s.key === 'fee_olevel')?.value || 0);
 
-    // --- STEP D: SECURITY INTEGRITY CHECKS ---
-    if (currency !== 'NGN') {
-        return res.status(400).json({ error: "Invalid currency. Payment must be in NGN." });
-    }
+    // D. Security Checks
+    if (currency !== 'NGN') return res.status(400).json({ error: "Invalid currency." });
+    if (amount < expectedFee) return res.status(400).json({ error: `Insufficient Payment. Fee is ₦${expectedFee}.` });
+    if (!tx_ref.includes(student_id)) return res.status(400).json({ error: "Invalid Receipt Ownership." });
 
-    if (amount < expectedFee) {
-        console.warn(`FRAUD ATTEMPT: Student ${student_id} paid ${amount} but expected ${expectedFee}`);
-        return res.status(400).json({ error: `Insufficient Payment. You paid ₦${amount} but the fee is ₦${expectedFee}.` });
-    }
+    // E. Update
+    await supabase.from('students').update({ payment_status: 'paid' }).eq('id', student_id);
 
-    // Verify Ownership (tx_ref contains student ID)
-    if (!tx_ref.includes(student_id)) {
-        console.warn(`FRAUD ATTEMPT: Student ${student_id} used receipt ${tx_ref} belonging to someone else.`);
-        return res.status(400).json({ error: "Invalid Receipt. This payment does not belong to your account." });
-    }
-
-    // --- STEP E: Update Database ---
-    const { error: updateError } = await supabase
-        .from('students')
-        .update({ payment_status: 'paid' })
-        .eq('id', student_id);
-
-    if (updateError) throw updateError;
-
-    // Log the successful payment to prevent reuse
     await supabase.from('payments').insert([{
         student_id: student_id,
         amount: amount,
-        reference: transaction_id.toString(), // Store the Transaction ID to block replay
+        reference: transaction_id.toString(),
         status: 'successful',
         channel: 'flutterwave'
     }]);
@@ -142,19 +134,22 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
-// ... (Keep existing submitManualPayment and getSchoolFees) ...
 // 4. SUBMIT MANUAL PAYMENT
 exports.submitManualPayment = async (req, res) => {
     const { student_id, reference, amount } = req.body;
     
+    // --- SECURITY: BOLA CHECK ---
+    if (req.user.id !== student_id) {
+        return res.status(403).json({ error: "You cannot submit payments for others." });
+    }
+
     try {
         if (!student_id || !reference) return res.status(400).json({ error: "Missing details" });
 
-        // Log into payments table as 'pending'
         const { error } = await supabase.from('payments').insert([{
             student_id,
             amount: amount || 0,
-            reference: reference, // This will be the user's manual input
+            reference: reference,
             status: 'pending_manual',
             channel: 'manual_transfer'
         }]);
@@ -177,17 +172,14 @@ exports.submitManualPayment = async (req, res) => {
     }
 };
 
-// 5. GET SCHOOL FEES
+// 5. GET FEES
 exports.getSchoolFees = async (req, res) => {
   try {
-    const { data, error } = await supabase.from('system_settings').select('*');
-    if (error) throw error;
-
+    const { data } = await supabase.from('system_settings').select('*');
     const fees = {};
-    data.forEach(item => fees[item.key] = Number(item.value));
+    data?.forEach(item => fees[item.key] = Number(item.value));
     res.json(fees);
   } catch (err) {
-    console.error("Get Fees Error:", err);
     res.status(500).json({ error: err.message });
   }
 };
