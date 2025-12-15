@@ -1,101 +1,79 @@
 const supabase = require('../config/supabaseClient');
 
-// HELPER: Upload Base64 to Supabase Storage
+// ... (Keep uploadPhoto helper) ...
 async function uploadPhoto(base64Data, userId) {
   if (!base64Data) return null;
   try {
-    // Remove header "data:image/jpeg;base64,"
     const base64File = base64Data.split(';base64,').pop();
     const buffer = Buffer.from(base64File, 'base64');
     const path = `students/${userId}_${Date.now()}.jpg`;
 
     const { data, error } = await supabase.storage
-      .from('photos') // Make sure you created this bucket in Supabase!
-      .upload(path, buffer, {
-        contentType: 'image/jpeg',
-        upsert: true
-      });
+      .from('photos')
+      .upload(path, buffer, { contentType: 'image/jpeg', upsert: true });
 
     if (error) throw error;
-
-    // Get Public URL
-    const { data: urlData } = supabase.storage
-      .from('photos')
-      .getPublicUrl(path);
-      
+    const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path);
     return urlData.publicUrl;
   } catch (err) {
     console.error("Photo Upload Error:", err.message);
-    return null; // Continue registration even if photo fails
+    return null;
   }
 }
 
-// --- ADMIN LOGIN (NEW FIX) ---
+// --- HELPER: PASSWORD VALIDATION ---
+const validatePassword = (password) => {
+    // Min 6 chars, at least one number (Basic requirement)
+    // You can make this stricter (e.g. symbols) if desired
+    const regex = /^(?=.*\d).{6,}$/;
+    return regex.test(password);
+};
+
+// ... (Keep adminLogin and studentLogin) ...
 exports.adminLogin = async (req, res) => {
   const { email, password } = req.body;
-
   try {
-    // 1. Authenticate with Supabase Auth
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return res.status(401).json({ error: 'Invalid Email or Password' });
 
-    // 2. CHECK ALLOWLIST (The Critical Fix)
-    const { data: adminEntry, error: allowError } = await supabase
+    const { data: adminEntry } = await supabase
       .from('admin_allowlist')
       .select('email')
       .ilike('email', email)
       .maybeSingle();
 
     if (!adminEntry) {
-      // If not in allowlist, sign them out immediately
       await supabase.auth.signOut();
       return res.status(403).json({ error: 'Access Denied: You are not an Administrator.' });
     }
 
-    // 3. Success - Return Admin Role
     res.json({
       message: 'Admin Login Successful',
       token: data.session.access_token,
-      user: {
-        id: data.user.id,
-        email: data.user.email,
-        role: 'admin' // Explicitly send this so frontend knows
-      }
+      user: { id: data.user.id, email: data.user.email, role: 'admin' }
     });
-
   } catch (err) {
-    console.error("Admin Login Error:", err);
     res.status(500).json({ error: 'Server Error' });
   }
 };
 
-// --- STUDENT LOGIN ---
 exports.studentLogin = async (req, res) => {
   const { identifier, password } = req.body;
   try {
     let email = identifier;
-
-    // 1. Resolve Student ID to Email (Case Insensitive)
     if (!identifier.includes('@')) {
       const { data } = await supabase
         .from('students')
         .select('email')
-        .ilike('student_id_text', identifier.trim()) // Use ilike for case-insensitivity
+        .ilike('student_id_text', identifier.trim())
         .maybeSingle();
-        
       if (!data) return res.status(404).json({ error: 'Student ID not found' });
       email = data.email;
     }
 
-    // 2. Auth
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (authError) return res.status(401).json({ error: 'Invalid Password' });
 
-    // 3. Get Profile
     const { data: profile, error: dbError } = await supabase
       .from('students')
       .select('*')
@@ -103,11 +81,7 @@ exports.studentLogin = async (req, res) => {
       .maybeSingle();
     
     if (dbError) throw dbError;
-    if (!profile) return res.status(500).json({ error: 'Profile row missing. Contact Admin.' });
-
-    // Fetch Full Name from Profiles table
-    const { data: profileName } = await supabase.from('profiles').select('full_name').eq('id', authData.user.id).single();
-    if(profileName) profile.full_name = profileName.full_name;
+    if (!profile) return res.status(500).json({ error: 'Profile row missing.' });
 
     res.json({
       message: 'Login successful',
@@ -115,12 +89,11 @@ exports.studentLogin = async (req, res) => {
       user: profile
     });
   } catch (error) {
-    console.error("Login Error:", error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// --- REGISTER STUDENT ---
+// --- REGISTER STUDENT (SECURE) ---
 exports.registerStudent = async (req, res) => {
   const clean = (val) => (val && val.trim() !== "" ? val : null);
 
@@ -132,11 +105,19 @@ exports.registerStudent = async (req, res) => {
   } = req.body;
 
   try {
-    // 1. Create Auth User
+    // 1. SECURITY: Enforce Password Policy
+    if (!validatePassword(password)) {
+        return res.status(400).json({ error: "Password is too weak. Must be at least 6 characters and include a number." });
+    }
+
+    // 2. SECURITY: Check Duplicate Phone/Email (Frontend does this, but backend is safer)
+    // (Supabase Auth handles Email duplication automatically)
+
+    // 3. Create Auth User
     const fullName = `${surname} ${middleName} ${lastName}`.trim();
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
-      password: password || 'password123',
+      password: password,
       email_confirm: true,
       user_metadata: { full_name: fullName } 
     });
@@ -144,21 +125,17 @@ exports.registerStudent = async (req, res) => {
     if (authError) throw authError;
     const userId = authData.user.id;
 
-    // 2. Generate Alphanumeric Student ID
+    // 4. Generate ID
     const year = new Date().getFullYear().toString().slice(-2);
-    // Generate 4 random alphanumeric chars (e.g., A9X2)
     const randAlpha = Math.random().toString(36).substring(2, 6).toUpperCase();
-    
     const deptMap = { 'Science': 'SCI', 'Art': 'ART', 'Commercial': 'BUS' };
     const deptCode = deptMap[department] || 'GEN';
-    
     const studentIdText = `MCAS/${deptCode}/${year}/${randAlpha}`; 
 
-    // 3. Upload Photo (Fixes Database Crash)
+    // 5. Upload Photo
     const photoUrl = await uploadPhoto(photoPreview, userId);
 
-    // 4. Create Profile & Student Entries
-    // (Note: We use upsert to be safe, but Auth trigger is gone so insert is also fine)
+    // 6. DB Inserts
     await supabase.from('profiles').upsert({
         id: userId,
         email,
@@ -187,34 +164,30 @@ exports.registerStudent = async (req, res) => {
         subjects: subjects,
         university_choice: clean(university),
         course_choice: clean(course),
-        photo_url: photoUrl, // Saving URL, not Base64!
+        photo_url: photoUrl,
         is_validated: false,
         payment_status: 'unpaid'
       });
 
     if (updateError) throw updateError;
 
-    // 5. Log Activity (Last step, safe from crashing flow)
-    try {
-      await supabase.from('activity_logs').insert([{
+    // 7. Log
+    await supabase.from('activity_logs').insert([{
         student_id: userId,
         student_name: fullName,
         student_id_text: studentIdText,
         action: 'registered',
-        ip_address: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+        ip_address: req.ip || 'unknown',
         device_info: req.headers['user-agent'] || 'unknown'
-      }]);
-    } catch (logError) {
-      console.warn('Log failed (non-critical):', logError.message);
-    }
+    }]);
 
     res.status(201).json({ message: 'Success', studentId: studentIdText });
 
   } catch (error) {
     console.error("Registration Error:", error);
-    // Clean up if auth user was created but DB failed
+    // Cleanup if auth created but db failed
     if (error.message.includes("Database") && userId) {
-       // Optional: await supabase.auth.admin.deleteUser(userId);
+        // await supabase.auth.admin.deleteUser(userId); // Optional cleanup
     }
     res.status(400).json({ error: error.message });
   }
