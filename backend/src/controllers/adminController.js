@@ -45,13 +45,29 @@ exports.getAllStudents = async (req, res) => {
 exports.updateStudentStatus = async (req, res) => {
   const { studentId, action, value } = req.body; 
   let updateData = {};
+  
+  // FIXED: Added payment_status handler
   if (action === 'validate') updateData = { is_validated: value };
   if (action === 'suspend') updateData = { is_suspended: value };
   if (action === 'parent_access') updateData = { is_parent_access_enabled: value };
+  if (action === 'payment_status') updateData = { payment_status: value };
 
   try {
     const { error } = await supabase.from('students').update(updateData).eq('id', studentId);
     if (error) throw error;
+    
+    // Log if it's a payment bypass
+    if (action === 'payment_status' && value === 'paid') {
+        await supabase.from('activity_logs').insert([{
+            student_id: studentId,
+            student_name: 'Admin',
+            student_id_text: 'SYSTEM',
+            action: 'payment_bypass_admin',
+            ip_address: req.ip || '0.0.0.0',
+            device_info: 'Manual Approval by Admin'
+        }]);
+    }
+
     res.json({ message: 'Student status updated successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
