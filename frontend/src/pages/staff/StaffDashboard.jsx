@@ -1,15 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
+import { useReactToPrint } from 'react-to-print';
 import { 
   LayoutDashboard, Users, FileCheck, LogOut, Search, 
   Menu, X, Loader2, Save, BookOpen, RefreshCw, 
-  Calendar, Bell, Send, ExternalLink
+  Calendar, Bell, Send, ExternalLink, Printer
 } from 'lucide-react';
+import LibraryView from '../../components/shared/LibraryView';
+import ReportCard from '../../components/shared/ReportCard';
 
 const StaffDashboard = () => {
-  const { user, logout } = useAuthStore();
+  const { user, token, logout } = useAuthStore();
   const navigate = useNavigate();
 
   // --- STATE ---
@@ -29,13 +32,18 @@ const StaffDashboard = () => {
   // --- RESULT MANAGEMENT STATE ---
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentResults, setStudentResults] = useState([]); 
-  const [availableSubjects, setAvailableSubjects] = useState([]); // Dynamic subjects
+  const [availableSubjects, setAvailableSubjects] = useState([]); 
   const [scoreData, setScoreData] = useState({
     subject: '',
     ca: '',
     exam: '',
     term: 'First Term'
   });
+
+  // --- REPORT PREVIEW STATE ---
+  const reportPrintRef = useRef();
+  const [previewReport, setPreviewReport] = useState(null);
+  const handlePrintReport = useReactToPrint({ contentRef: reportPrintRef });
 
   // --- BROADCAST STATE ---
   const [newMsg, setNewMsg] = useState({ title: '', message: '' });
@@ -64,36 +72,26 @@ const StaffDashboard = () => {
   const loadInitialData = async () => {
     setRefreshing(true);
     try {
-      // 1. Fetch Students
-      // We fetch all, but we will FILTER them strictly by department below
-      const studentsData = await api.get('/schmngt/students'); 
+      // FIXED: Use staff-specific route instead of admin route
+      const studentsData = await api.get('/staff/my-students', token);
       
-      // 2. Fetch Settings (For Session)
-      const settings = await api.get('/schmngt/settings');
+      const settings = await api.get('/schmngt/settings', token);
       const session = settings.find(s => s.key === 'current_session')?.value || '2025/2026';
 
-      // 3. Fetch Broadcasts
-      const msgs = await api.get('/students/announcements');
+      const msgs = await api.get('/students/announcements', token);
 
-      // --- CRITICAL FIX: DEPARTMENT FILTERING ---
-      // Staff can ONLY see students in their own department
-      const staffDept = user.department; 
-      
-      let myStudents = [];
-      if (staffDept) {
-         myStudents = studentsData.filter(s => s.department === staffDept);
-      } else {
-         // Fallback if staff has no department set (rare)
-         myStudents = [];
-      }
-
-      setStudents(myStudents);
-      setFilteredStudents(myStudents);
+      setStudents(studentsData || []);
+      setFilteredStudents(studentsData || []);
       setCurrentSession(session);
       setBroadcasts(msgs || []);
 
     } catch (err) {
       console.error("Staff Data Error:", err);
+      // If auth error, log out
+      if(err.message.includes('403') || err.message.includes('401')) {
+          logout();
+          navigate('/auth/staff');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -104,9 +102,9 @@ const StaffDashboard = () => {
 
   const handleSelectStudent = (student) => {
     setSelectedStudent(student);
+    setPreviewReport(null); // Reset preview
     
-    // --- CRITICAL FIX: DYNAMIC SUBJECTS ---
-    // Parse the JSONB subjects to an array
+    // Parse subjects
     let subs = [];
     if (Array.isArray(student.subjects)) {
       subs = student.subjects;
@@ -114,10 +112,7 @@ const StaffDashboard = () => {
       try { subs = JSON.parse(student.subjects); } catch(e) { subs = []; }
     }
     
-    if (subs.length === 0) {
-       // Fallback only if student has no registered subjects
-       subs = ['Mathematics', 'English']; 
-    }
+    if (subs.length === 0) subs = ['Mathematics', 'English']; 
     
     setAvailableSubjects(subs);
     setScoreData({ subject: '', ca: '', exam: '', term: 'First Term' }); 
@@ -126,7 +121,7 @@ const StaffDashboard = () => {
 
   const fetchStudentResults = async (studentId) => {
     try {
-      const data = await api.get(`/results/${studentId}`);
+      const data = await api.get(`/results/${studentId}`, token);
       setStudentResults(data || []);
     } catch (err) {
       console.error("Failed to fetch history:", err);
@@ -147,13 +142,10 @@ const StaffDashboard = () => {
         exam: scoreData.exam,
         term: scoreData.term,
         session: currentSession
-      });
+      }, token);
       
       alert(`Result for ${scoreData.subject} saved successfully!`);
-      
       await fetchStudentResults(selectedStudent.id);
-      
-      // Clear scores for next entry
       setScoreData(prev => ({ ...prev, ca: '', exam: '' }));
 
     } catch (err) {
@@ -170,18 +162,24 @@ const StaffDashboard = () => {
       exam: result.exam_score,
       term: result.term
     });
-    // Ensure the subject is available in the list so it displays correctly
     if (!availableSubjects.includes(result.subject)) {
         setAvailableSubjects(prev => [...prev, result.subject]);
     }
     document.getElementById('result-form').scrollIntoView({ behavior: 'smooth' });
   };
 
+  const generateReportPreview = () => {
+      if(!selectedStudent) return;
+      setPreviewReport({ student: selectedStudent, results: studentResults });
+      // Small delay to allow render before print
+      setTimeout(() => handlePrintReport(), 500);
+  };
+
   // --- BROADCAST FUNCTIONS ---
   const sendBroadcast = async () => {
     if (!newMsg.title || !newMsg.message) return alert("Fill all fields");
     try {
-      await api.post('/schmngt/broadcast', { ...newMsg, target: 'student' });
+      await api.post('/schmngt/broadcast', { ...newMsg, target: 'student' }, token);
       alert("Message Sent to Students!");
       setNewMsg({ title: '', message: '' });
       loadInitialData();
@@ -220,6 +218,7 @@ const StaffDashboard = () => {
           <TabBtn icon={<FileCheck/>} label="Manage Results" active={activeTab==='results'} expanded={sidebarOpen} onClick={()=>setActiveTab('results')} />
           <TabBtn icon={<Users/>} label="My Students" active={activeTab==='students'} expanded={sidebarOpen} onClick={()=>setActiveTab('students')} />
           <TabBtn icon={<Calendar/>} label="Timetable" active={activeTab==='timetable'} expanded={sidebarOpen} onClick={()=>setActiveTab('timetable')} />
+          <TabBtn icon={<BookOpen/>} label="Library" active={activeTab==='library'} expanded={sidebarOpen} onClick={()=>setActiveTab('library')} />
           <TabBtn icon={<Bell/>} label="Broadcasts" active={activeTab==='broadcast'} expanded={sidebarOpen} onClick={()=>setActiveTab('broadcast')} />
         </nav>
 
@@ -320,7 +319,7 @@ const StaffDashboard = () => {
           </div>
         )}
 
-        {/* --- RESULTS ENTRY TAB (ROBUST) --- */}
+        {/* --- RESULTS ENTRY TAB --- */}
         {activeTab === 'results' && (
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 animate-fadeIn">
             
@@ -358,7 +357,10 @@ const StaffDashboard = () => {
                   <div className="flex justify-between items-center mb-6 border-b pb-4">
                      <h3 className="font-bold text-lg flex items-center gap-2"><FileCheck size={20}/> 2. Enter Scores</h3>
                      {selectedStudent ? (
-                        <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold">Selected: {selectedStudent.surname} {selectedStudent.first_name}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold">Selected: {selectedStudent.surname} {selectedStudent.first_name}</span>
+                            <button onClick={generateReportPreview} className="text-xs bg-slate-800 text-white px-3 py-1 rounded-full flex items-center gap-1 hover:bg-slate-900 transition"><Printer size={12}/> Preview Report Card</button>
+                        </div>
                      ) : (
                         <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-xs font-bold">No Student Selected</span>
                      )}
@@ -449,22 +451,11 @@ const StaffDashboard = () => {
           </div>
         )}
 
-        {/* --- TIMETABLE TAB --- */}
-        {activeTab === 'timetable' && (
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden animate-fadeIn">
-            <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Official Timetable</h3>
-                <p className="text-sm text-slate-500 mt-1">External Schedule View</p>
-              </div>
-              <a href="https://meritstudenttimetable.vercel.app" target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2">
-                <ExternalLink size={18}/> Open Full Site
-              </a>
-            </div>
-            <div className="relative" style={{ height: '700px' }}>
-              <iframe src="https://meritstudenttimetable.vercel.app" className="w-full h-full border-0" title="Timetable" />
-            </div>
-          </div>
+        {/* --- LIBRARY TAB (FIXED) --- */}
+        {activeTab === 'library' && (
+           <div className="animate-fadeIn">
+              <LibraryView user={user} role="staff" isAdmin={false} token={token} />
+           </div>
         )}
 
         {/* --- BROADCASTS TAB --- */}
@@ -509,6 +500,11 @@ const StaffDashboard = () => {
         )}
 
       </main>
+
+      {/* Hidden Print Component */}
+      <div style={{ position: 'fixed', left: '-10000px', top: 0 }}>
+         {previewReport && <ReportCard ref={reportPrintRef} student={previewReport.student} results={previewReport.results} />}
+      </div>
     </div>
   );
 };
