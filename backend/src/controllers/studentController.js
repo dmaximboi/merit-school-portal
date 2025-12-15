@@ -7,9 +7,7 @@ exports.getStudentProfile = async (req, res) => {
     
     // --- SECURITY: BOLA CHECK ---
     // Ensure the requester is either the owner OR an admin
-    // req.user is populated by the authMiddleware
-    if (req.user.id !== id && req.user.role !== 'admin') {
-        console.warn(`UNAUTHORIZED ACCESS ATTEMPT: User ${req.user.id} tried to view ${id}`);
+    if (req.user.id !== id && req.role !== 'admin') {
         return res.status(403).json({ error: 'Access Denied: You can only view your own profile.' });
     }
 
@@ -51,9 +49,8 @@ exports.getAnnouncements = async (req, res) => {
 exports.verifyPayment = async (req, res) => {
   const { transaction_id, student_id } = req.body;
 
-  // --- SECURITY: BOLA CHECK FOR PAYMENTS ---
-  // A student should not be able to verify a payment for someone else
-  if (req.user.id !== student_id && req.user.role !== 'admin') {
+  // Security Check
+  if (req.user.id !== student_id && req.role !== 'admin') {
       return res.status(403).json({ error: "Access Denied: Cannot process payment for another student." });
   }
 
@@ -137,7 +134,6 @@ exports.verifyPayment = async (req, res) => {
 exports.submitManualPayment = async (req, res) => {
     const { student_id, reference, amount } = req.body;
     
-    // --- SECURITY: BOLA CHECK ---
     if (req.user.id !== student_id) {
         return res.status(403).json({ error: "You cannot submit payments for others." });
     }
