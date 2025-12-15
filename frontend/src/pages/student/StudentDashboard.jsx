@@ -59,7 +59,10 @@ const StudentDashboard = () => {
       link.download = `${filename}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-    } catch (err) { alert('Download failed. Please try Printing to PDF instead.'); }
+    } catch (err) { 
+        console.error(err);
+        alert('Download failed. Please try Printing to PDF instead.'); 
+    }
   };
 
   // --- INITIALIZATION ---
@@ -510,9 +513,9 @@ const StudentDashboard = () => {
                             <div className="space-y-4 animate-fadeIn">
                                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm">
                                     <p className="font-bold text-blue-800 mb-2">Bank Details:</p>
-                                    <p>Bank Name: <span className="font-mono font-bold">OPAY</span></p>
-                                    <p>Account No: <span className="font-mono font-bold text-lg">9030554366</span></p>
-                                    <p>Account Name: <span className="font-mono font-bold">MERIT COLLEGE</span></p>
+                                    <p>Bank Name: <span className="font-mono font-bold">Moniepoint</span></p>
+                                    <p>Account No: <span className="font-mono font-bold text-lg">5170916891</span></p>
+                                    <p>Account Name: <span className="font-mono font-bold">Olaya Opeyemi</span></p>
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase">Sender Name / Ref</label>
@@ -552,12 +555,15 @@ const StudentDashboard = () => {
       </main>
 
       {/* --- HIDDEN PRINT COMPONENTS --- */}
+      {/* FIXED: Changed display:none to position:fixed to ensure html2canvas can capture them.
+          They are moved far off-screen so the user doesn't see them. 
+      */}
       {!isFeatureLocked && (
          <>
-           <div style={{ display: "none" }}>
+           <div style={{ position: 'fixed', left: '-10000px', top: 0 }}>
              <AdmissionLetter ref={admissionPrintRef} student={profile} />
            </div>
-           <div style={{ display: "none" }}>
+           <div style={{ position: 'fixed', left: '-10000px', top: 0 }}>
              <ReportCard ref={reportPrintRef} student={profile} results={results} />
            </div>
          </>
