@@ -28,6 +28,7 @@ const AdminDashboard = () => {
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [fees, setFees] = useState([]);
+  const [staffList, setStaffList] = useState([]); // ADDED STAFF STATE
   
   // --- BROADCAST STATE ---
   const [broadcastList, setBroadcastList] = useState([]);
@@ -85,12 +86,14 @@ const AdminDashboard = () => {
     try {
       console.log("Fetching Admin Data...");
       
-      const [studentsData, statsData, settingsData, logsData, msgsData] = await Promise.all([
+      // ADDED '/schmngt/staff' to the fetch list
+      const [studentsData, statsData, settingsData, logsData, msgsData, staffData] = await Promise.all([
         api.get('/schmngt/students', authToken),
         api.get('/schmngt/dashboard-stats', authToken),
         api.get('/schmngt/settings', authToken),
         api.get('/activity-logs/all', authToken),
-        api.get('/students/announcements', authToken)
+        api.get('/students/announcements', authToken),
+        api.get('/schmngt/staff', authToken) 
       ]);
 
       setStudents(studentsData || []);
@@ -99,6 +102,7 @@ const AdminDashboard = () => {
       setFees(settingsData || []);
       setActivityLogs(logsData || []);
       setBroadcastList(msgsData || []);
+      setStaffList(staffData || []); // SET STAFF DATA
       
     } catch (err) {
       console.error("Admin Data Load Error:", err);
@@ -278,6 +282,7 @@ const AdminDashboard = () => {
       try {
           await api.delete(`/schmngt/broadcast/${id}`, token);
           setBroadcastList(prev => prev.filter(b => b.id !== id));
+          alert("Broadcast deleted successfully.");
       } catch(err) { alert("Failed to delete"); }
   };
 
@@ -501,6 +506,34 @@ const AdminDashboard = () => {
                 </table>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* STAFF SECTION FIXED */}
+        {activeTab === 'staff' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center">
+              <h3 className="font-bold text-lg text-slate-800">Staff Management</h3>
+              <button onClick={generateStaffCode} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition">
+                + Generate Reg Token
+              </button>
+            </div>
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                <tr><th className="p-5">Name</th><th className="p-5">Email</th><th className="p-5">Role</th><th className="p-5">Status</th></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {staffList.length === 0 ? <tr><td colSpan="4" className="p-8 text-center text-slate-500">No staff members found.</td></tr> :
+                staffList.map(st => (
+                  <tr key={st.id} className="hover:bg-slate-50">
+                    <td className="p-5 font-medium">{st.full_name}</td>
+                    <td className="p-5 text-slate-500">{st.email}</td>
+                    <td className="p-5"><span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold">Staff</span></td>
+                    <td className="p-5"><span className="text-green-600 font-bold text-xs">Active</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
