@@ -11,7 +11,7 @@ router.get('/dashboard-stats', adminController.getDashboardStats);
 // Students
 router.get('/students', adminController.getAllStudents);
 router.post('/update-student', adminController.updateStudentStatus);
-router.delete('/students/:id', adminController.deleteStudent); // FIXED: Added this route
+router.delete('/students/:id', adminController.deleteStudent);
 
 // Settings & Fees
 router.get('/settings', adminController.getSettings);
@@ -19,8 +19,10 @@ router.post('/settings', adminController.updateSystemSettings);
 
 // Broadcasts
 router.post('/broadcast', adminController.sendBroadcast);
+router.delete('/broadcast/:id', adminController.deleteBroadcast); // ADDED THIS
 
-// Staff Token
+// Staff Token & Management
 router.post('/generate-code', adminController.generateStaffCode);
+router.get('/staff', adminController.getAllStaff); // ADDED THIS
 
 module.exports = router;
