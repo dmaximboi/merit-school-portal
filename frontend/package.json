@@ -11,6 +11,12 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.84.0",
+    "@tiptap/react": "^2.2.4",
+    "@tiptap/starter-kit": "^2.2.4",
+    "@tiptap/extension-link": "^2.2.4",
+    "@tiptap/extension-image": "^2.2.4",
+    "@tiptap/extension-placeholder": "^2.2.4",
+    "katex": "^0.16.9",
     "clsx": "^2.1.1",
     "jspdf": "^2.5.1",
     "date-fns": "^4.1.0",
