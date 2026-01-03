@@ -46,7 +46,6 @@ exports.updateStudentStatus = async (req, res) => {
   const { studentId, action, value } = req.body; 
   let updateData = {};
   
-  // FIXED: Added payment_status handler
   if (action === 'validate') updateData = { is_validated: value };
   if (action === 'suspend') updateData = { is_suspended: value };
   if (action === 'parent_access') updateData = { is_parent_access_enabled: value };
@@ -74,7 +73,7 @@ exports.updateStudentStatus = async (req, res) => {
   }
 };
 
-// --- DELETE STUDENT ---
+// DELETE STUDENT
 exports.deleteStudent = async (req, res) => {
   const { id } = req.params;
   try {
@@ -124,9 +123,38 @@ exports.sendBroadcast = async (req, res) => {
   }
 };
 
-// 5. STAFF CODES
+// NEW: DELETE BROADCAST
+exports.deleteBroadcast = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { error } = await supabase
+      .from('announcements')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    res.json({ message: 'Broadcast deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 5. STAFF CODES & MANAGEMENT
 exports.generateStaffCode = async (req, res) => {
   const code = `MRT-STF-${Math.floor(1000 + Math.random() * 9000)}`;
   await supabase.from('verification_codes').insert([{ code, created_by: req.user.email }]);
   res.json({ code });
+};
+
+// NEW: GET ALL STAFF
+exports.getAllStaff = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('staff') 
+      .select('*');
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
