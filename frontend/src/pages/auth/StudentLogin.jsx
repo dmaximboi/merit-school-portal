@@ -7,7 +7,7 @@ import { GraduationCap, Lock, ArrowRight, AlertTriangle } from 'lucide-react';
 const StudentLogin = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
-  
+
   const [formData, setFormData] = useState({ identifier: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -20,10 +20,10 @@ const StudentLogin = () => {
     try {
       // Robust Login Call
       const data = await api.post('/auth/student/login', formData);
-      
+
       // Save to Store
       login(data.user, data.token, 'student');
-      
+
       // Redirect
       navigate('/student/dashboard');
     } catch (err) {
@@ -37,8 +37,8 @@ const StudentLogin = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-soft">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-4 text-primary-600">
-            <GraduationCap size={32} />
+          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden border-2 border-primary-100">
+            <img src="/meritlogo.jpg" alt="Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-primary-900">Student Portal</h1>
           <p className="text-slate-500">Sign in to access your dashboard</p>
@@ -53,29 +53,35 @@ const StudentLogin = () => {
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="label-text">Student ID or Email</label>
-            <input 
-              type="text" 
-              className="input-field" 
+            <input
+              type="text"
+              className="input-field"
               placeholder="MCAS/..."
               value={formData.identifier}
-              onChange={e => setFormData({...formData, identifier: e.target.value})}
+              onChange={e => setFormData({ ...formData, identifier: e.target.value })}
               required
             />
           </div>
           <div>
-             <label className="label-text">Password</label>
-             <div className="relative">
-               <input 
-                 type="password" 
-                 className="input-field pl-10" 
-                 placeholder="••••••••"
-                 value={formData.password}
-                 onChange={e => setFormData({...formData, password: e.target.value})}
-                 required
-               />
-               <Lock className="absolute left-3 top-3.5 text-slate-400" size={18} />
-             </div>
+            <label className="label-text">Password</label>
+            <div className="relative">
+              <input
+                type="password"
+                className="input-field pl-10"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={e => setFormData({ ...formData, password: e.target.value })}
+                required
+              />
+              <Lock className="absolute left-3 top-3.5 text-slate-400" size={18} />
+            </div>
           </div>
+          <div className="flex justify-end">
+            <button type="button" onClick={() => navigate('/auth/forgot-password')} className="text-xs font-bold text-primary-600 hover:text-primary-800 hover:underline">
+              Forgot Password?
+            </button>
+          </div>
+
 
           <button type="submit" disabled={loading} className="w-full btn-primary justify-center py-3 text-lg">
             {loading ? 'Authenticating...' : 'Sign In'} <ArrowRight size={18} />

@@ -31,54 +31,54 @@ const StaffLogin = () => {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-soft border-t-4 border-slate-600">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-700">
-            <Briefcase size={32} />
+          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden border-2 border-slate-200">
+            <img src="/meritlogo.jpg" alt="Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Staff Portal</h1>
           <p className="text-slate-500">Authorized Personnel Only</p>
         </div>
 
         {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded mb-4 flex items-center gap-2 text-sm">
-                <AlertCircle size={16}/> {error}
-            </div>
+          <div className="bg-red-50 text-red-600 p-3 rounded mb-4 flex items-center gap-2 text-sm">
+            <AlertCircle size={16} /> {error}
+          </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="label-text">Staff Email</label>
-            <input 
-              type="email" 
-              className="input-field" 
+            <input
+              type="email"
+              className="input-field"
               placeholder="staff@meritcollege.edu.ng"
-              required 
-              value={formData.email} 
-              onChange={e => setFormData({...formData, email: e.target.value})}
+              required
+              value={formData.email}
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
             />
           </div>
           <div>
             <label className="label-text">Password</label>
-            <input 
-              type="password" 
-              className="input-field" 
+            <input
+              type="password"
+              className="input-field"
               placeholder="••••••••"
-              required 
-              value={formData.password} 
-              onChange={e => setFormData({...formData, password: e.target.value})}
+              required
+              value={formData.password}
+              onChange={e => setFormData({ ...formData, password: e.target.value })}
             />
           </div>
           <button disabled={loading} className="w-full btn-primary bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 flex justify-center gap-2">
-            {loading ? <Loader2 className="animate-spin"/> : <>Login <ArrowRight size={18}/></>}
+            {loading ? <Loader2 className="animate-spin" /> : <>Login <ArrowRight size={18} /></>}
           </button>
         </form>
 
         <div className="mt-6 flex flex-col gap-2 text-center border-t border-slate-100 pt-4">
-            <button onClick={() => navigate('/register/staff')} className="text-sm font-semibold text-slate-700 hover:underline">
-                New Staff? Register Here
-            </button>
-            <button onClick={() => navigate('/')} className="text-sm text-slate-500 hover:underline">
-                Back Home
-            </button>
+          <button onClick={() => navigate('/register/staff')} className="text-sm font-semibold text-slate-700 hover:underline">
+            New Staff? Register Here
+          </button>
+          <button onClick={() => navigate('/')} className="text-sm text-slate-500 hover:underline">
+            Back Home
+          </button>
         </div>
       </div>
     </div>

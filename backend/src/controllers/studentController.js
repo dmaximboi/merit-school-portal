@@ -14,7 +14,7 @@ const logActivity = async (studentId, action, details = {}) => {
   try {
     await supabase.from('activity_logs').insert([{
       student_id: studentId,
-      student_name: details.name || 'Student', 
+      student_name: details.name || 'Student',
       student_id_text: details.student_id_text || 'UNKNOWN',
       action: action,
       ip_address: getClientIP(details.req),
@@ -92,7 +92,7 @@ exports.updateStudentProfile = async (req, res) => {
     const allowed = ['phone_number', 'address', 'parents_phone', 'state_of_origin', 'lga'];
     const filteredUpdates = {};
     Object.keys(updates).forEach(key => {
-        if(allowed.includes(key)) filteredUpdates[key] = updates[key];
+      if (allowed.includes(key)) filteredUpdates[key] = updates[key];
     });
 
     const { data, error } = await supabase
@@ -129,9 +129,26 @@ exports.getAnnouncements = async (req, res) => {
 
 // ==================== PAYMENTS (Updated for Multi-Program) ====================
 
+exports.getSchoolFees = async (req, res) => {
+  try {
+    const { data } = await supabase.from('system_settings').select('*');
+    const settings = {};
+    data?.forEach(item => { settings[item.key] = Number(item.value); });
+
+    // Return only fees
+    res.json({
+      fee_jamb: settings.fee_jamb || 0,
+      fee_alevel: settings.fee_alevel || 0,
+      fee_olevel: settings.fee_olevel || 0
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // 1. Verify Online Payment (Flutterwave)
 exports.verifyPayment = async (req, res) => {
-  const { transaction_id, student_id, purpose, program_type } = req.body; 
+  const { transaction_id, student_id, purpose, program_type } = req.body;
   // 'purpose' can be 'program_fee' or 'cbt_access'
 
   try {
@@ -142,29 +159,29 @@ exports.verifyPayment = async (req, res) => {
 
     // B. Handle different payment types
     if (purpose === 'program_fee') {
-        // Update specific program status
-        await supabase
-            .from('student_programs')
-            .update({ payment_status: 'paid' })
-            .eq('student_id', student_id)
-            .eq('program_type', program_type);
-            
+      // Update specific program status
+      await supabase
+        .from('student_programs')
+        .update({ payment_status: 'paid' })
+        .eq('student_id', student_id)
+        .eq('program_type', program_type);
+
     } else if (purpose === 'cbt_access') {
-        // Create Subscription
-        await supabase.from('cbt_subscriptions').insert([{
-            student_id,
-            amount_paid: amountPaid,
-            plan_type: 'monthly'
-        }]);
+      // Create Subscription
+      await supabase.from('cbt_subscriptions').insert([{
+        student_id,
+        amount_paid: amountPaid,
+        plan_type: 'monthly'
+      }]);
     }
 
     // C. Log to Main Payments Table
     await supabase.from('payments').insert([{
-        student_id,
-        amount: amountPaid, // use real amount
-        reference: transaction_id,
-        status: 'successful',
-        channel: 'flutterwave'
+      student_id,
+      amount: amountPaid, // use real amount
+      reference: transaction_id,
+      status: 'successful',
+      channel: 'flutterwave'
     }]);
 
     res.json({ success: true, message: "Payment Verified" });
@@ -211,25 +228,25 @@ exports.submitManualPayment = async (req, res) => {
 // ==================== PASSWORD RESET (New Request) ====================
 
 exports.resetPassword = async (req, res) => {
-    const { email, newPassword } = req.body;
-    
-    // Only allow this if it's the logged-in user OR if they have a specialized token (Forgot Password flow)
-    // For simple Dashboard reset:
-    if (req.user.email !== email && req.user.role !== 'admin') {
-        return res.status(403).json({ error: "Unauthorized" });
-    }
+  const { email, newPassword } = req.body;
 
-    try {
-        const { data, error } = await supabase.auth.admin.updateUserById(
-            req.user.id, 
-            { password: newPassword }
-        );
-        
-        if (error) throw error;
-        res.json({ message: "Password updated successfully" });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+  // Only allow this if it's the logged-in user OR if they have a specialized token (Forgot Password flow)
+  // For simple Dashboard reset:
+  if (req.user.email !== email && req.user.role !== 'admin') {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const { data, error } = await supabase.auth.admin.updateUserById(
+      req.user.id,
+      { password: newPassword }
+    );
+
+    if (error) throw error;
+    res.json({ message: "Password updated successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 exports.getPaymentHistory = async (req, res) => {

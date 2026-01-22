@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Upload, X, CheckCircle, User, Book, FileText, Eye, EyeOff, 
-  ChevronRight, ChevronLeft, Loader2, Printer, AlertTriangle, 
+import {
+  Upload, X, CheckCircle, User, Book, FileText, Eye, EyeOff,
+  ChevronRight, ChevronLeft, Loader2, Printer, AlertTriangle,
   ChevronDown, ChevronUp, Lock, Image as ImageIcon, File
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -10,16 +10,17 @@ import jsPDF from 'jspdf';
 import { api } from '../../lib/api';
 
 // --- COMPONENTS ---
+import FormPreview from '../../components/FormPreview';
 
 const InputField = ({ label, value, onChange, type = "text", error, onBlur, placeholder }) => (
   <div>
     <label className="block text-sm font-bold text-slate-700 mb-2">{label}</label>
-    <input 
-      type={type} 
-      className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition ${error ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-blue-500'}`} 
-      value={value} 
-      onChange={e => onChange(e.target.value)} 
-      onBlur={onBlur} 
+    <input
+      type={type}
+      className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition ${error ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-blue-500'}`}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      onBlur={onBlur}
       placeholder={placeholder}
     />
     {error && <span className="text-red-500 text-xs font-bold mt-1 block">{error}</span>}
@@ -29,140 +30,24 @@ const InputField = ({ label, value, onChange, type = "text", error, onBlur, plac
 const AccordionItem = ({ isOpen, title, icon: Icon, onToggle, children }) => {
   return (
     <div className={`border-b border-slate-200 transition-all ${isOpen ? 'bg-white' : 'bg-slate-50'}`}>
-      <button 
+      <button
         onClick={onToggle}
         className={`w-full flex items-center justify-between p-6 text-left focus:outline-none ${isOpen ? 'text-blue-900' : 'text-slate-600'}`}
       >
         <div className="flex items-center gap-4">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isOpen ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-500'}`}>
-            <Icon size={20}/>
+            <Icon size={20} />
           </div>
           <span className="font-bold text-lg">{title}</span>
         </div>
-        {isOpen ? <ChevronUp/> : <ChevronDown/>}
+        {isOpen ? <ChevronUp /> : <ChevronDown />}
       </button>
       {isOpen && <div className="p-6 pt-0 animate-fadeIn">{children}</div>}
     </div>
   );
 };
 
-const FormPreview = ({ formData }) => (
-  <div className="text-sm leading-relaxed text-black" style={{ fontFamily: 'Times New Roman, serif' }}>
-    <div className="flex items-center gap-6 border-b-2 border-black pb-4 mb-6">
-      <img src="/meritlogo.jpg" alt="MCAS Logo" className="w-24 h-24 object-contain"/>
-      <div className="text-center flex-1">
-        <h1 className="text-3xl font-black text-blue-900 uppercase tracking-wider">Merit College of Advanced Studies</h1>
-        <p className="text-xs font-bold tracking-[0.3em] mt-1 text-slate-600">KNOWLEDGE FOR ADVANCEMENT</p>
-        <p className="text-sm mt-2 font-medium">32, Ansarul Ogidi, beside Conoil Filling Station, Ilorin, Kwara State.</p>
-        <p className="text-sm">Tel: 08123456789, 08098765432 | Email: admissions@meritcollege.edu.ng</p>
-      </div>
-    </div>
 
-    <h2 className="text-center font-bold text-xl underline mb-8 uppercase">Student Registration Form (2025/2026)</h2>
-
-    <div className="mb-8 border border-slate-800 p-0">
-      <h3 className="font-bold text-sm bg-slate-200 p-2 border-b border-slate-800 uppercase">A. Personal Bio-Data</h3>
-      <div className="p-4 flex gap-6">
-        <div className="w-40 h-44 bg-slate-100 border border-slate-400 flex-shrink-0">
-          {formData.photoPreview && <img src={formData.photoPreview} className="w-full h-full object-cover"/>}
-        </div>
-        <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-4">
-          <div className="col-span-2 border-b border-dotted border-slate-400 pb-1 flex">
-            <span className="font-bold w-32">Full Name:</span> 
-            <span className="uppercase">{formData.surname} {formData.middleName} {formData.lastName}</span>
-          </div>
-          <div className="border-b border-dotted border-slate-400 pb-1 flex">
-            <span className="font-bold w-24">Gender:</span> {formData.gender}
-          </div>
-          <div className="border-b border-dotted border-slate-400 pb-1 flex">
-            <span className="font-bold w-24">DOB:</span> {formData.dateOfBirth}
-          </div>
-          <div className="border-b border-dotted border-slate-400 pb-1 flex">
-            <span className="font-bold w-24">State:</span> {formData.stateOfOrigin}
-          </div>
-          <div className="border-b border-dotted border-slate-400 pb-1 flex">
-            <span className="font-bold w-24">LGA:</span> {formData.lga}
-          </div>
-          <div className="col-span-2 border-b border-dotted border-slate-400 pb-1 flex">
-            <span className="font-bold w-32">Address:</span> {formData.permanentAddress}
-          </div>
-          <div className="border-b border-dotted border-slate-400 pb-1 flex">
-            <span className="font-bold w-24">Phone:</span> {formData.studentPhone}
-          </div>
-          <div className="border-b border-dotted border-slate-400 pb-1 flex">
-            <span className="font-bold w-24">Parent Ph:</span> {formData.parentsPhone}
-          </div>
-          <div className="col-span-2 border-b border-dotted border-slate-400 pb-1 flex">
-            <span className="font-bold w-32">Email:</span> {formData.email}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div className="mb-8 border border-slate-800 p-0">
-      <h3 className="font-bold text-sm bg-slate-200 p-2 border-b border-slate-800 uppercase">B. Academic Information</h3>
-      <div className="p-4">
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="border-b border-dotted border-slate-400 pb-1 flex">
-            <span className="font-bold w-32">Programme:</span> {formData.programme}
-          </div>
-          <div className="border-b border-dotted border-slate-400 pb-1 flex">
-            <span className="font-bold w-32">Department:</span> {formData.department}
-          </div>
-          {formData.programme === 'A-Level' && (
-            <>
-              <div className="border-b border-dotted border-slate-400 pb-1 flex">
-                <span className="font-bold w-32">University:</span> {formData.university}
-              </div>
-              <div className="border-b border-dotted border-slate-400 pb-1 flex">
-                <span className="font-bold w-32">Course:</span> {formData.course}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div>
-          <span className="font-bold block mb-3 underline">Registered Subjects:</span>
-          <div className="grid grid-cols-3 gap-y-2 gap-x-4">
-            {formData.subjects.map((sub, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm">
-                <div className="w-4 h-4 border border-black flex items-center justify-center font-bold text-[10px]">X</div> 
-                <span className="uppercase">{sub}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div className="border border-slate-800 p-0 mt-auto">
-      <h3 className="font-bold text-sm bg-slate-200 p-2 border-b border-slate-800 uppercase">C. Declaration & Attestation</h3>
-      <div className="p-4">
-        <p className="text-justify mb-10 leading-6">
-          I, <strong>{formData.surname} {formData.middleName} {formData.lastName}</strong>, hereby solemnly declare that all the information provided in this form is true, correct, and complete. 
-          I understand that any false information may lead to the cancellation of my admission. I agree to abide by all the rules, regulations, and code of conduct of Merit College of Advanced Studies.
-        </p>
-
-        <div className="flex justify-between items-end mt-12 px-8">
-          <div className="text-center">
-            <div className="text-3xl mb-2 text-blue-900 border-b-2 border-black min-w-[250px] pb-1" style={{ fontFamily: 'Brush Script MT, cursive' }}>
-              {formData.signature}
-            </div>
-            <p className="text-xs font-bold uppercase tracking-widest">Applicant Signature</p>
-          </div>
-          <div className="text-center">
-            <div className="border-b-2 border-black min-w-[250px] mb-8"></div>
-            <p className="text-xs font-bold uppercase tracking-widest">Registrar / Official Stamp</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div className="text-center text-[10px] mt-8 text-slate-500 border-t pt-2">
-      Printed on {new Date().toLocaleString()} • Merit College Portal • ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}
-    </div>
-  </div>
-);
 
 // --- MAIN COMPONENT ---
 const StudentRegister = () => {
@@ -184,7 +69,7 @@ const StudentRegister = () => {
     password: '', confirmPassword: '',
     programme: '', department: '',
     subjects: [],
-    university: '', course: '', 
+    university: '', course: '',
     photoPreview: null,
     signature: '',
     termsAccepted: false
@@ -201,7 +86,7 @@ const StudentRegister = () => {
     if (/\d/.test(pass)) score += 1;
     if (/[A-Z]/.test(pass)) score += 1;
     if (/[^A-Za-z0-9]/.test(pass)) score += 1;
-    return score; 
+    return score;
   };
   const passwordScore = checkStrength(formData.password);
 
@@ -218,9 +103,9 @@ const StudentRegister = () => {
   };
 
   useEffect(() => {
-    if ((formData.programme === 'O-Level' || formData.programme === 'JAMB') && 
-        formData.department && 
-        !formData.subjects.includes('English Language')) {
+    if ((formData.programme === 'O-Level' || formData.programme === 'JAMB') &&
+      formData.department &&
+      !formData.subjects.includes('English Language')) {
       setFormData(prev => ({
         ...prev,
         subjects: ['English Language', ...prev.subjects]
@@ -229,24 +114,24 @@ const StudentRegister = () => {
   }, [formData.programme, formData.department]);
 
   const validatePhone = (phone) => /^0\d{10}$/.test(phone);
-  
+
   // STRICT GMAIL VALIDATION
   const validateEmail = (email) => /^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(email);
 
   const handleEmailBlur = async () => {
     if (!formData.email || !validateEmail(formData.email)) {
-        if(formData.email && !validateEmail(formData.email)) {
-            setErrors(prev => ({ ...prev, email: "Only @gmail.com addresses are allowed." }));
-        }
-        return;
+      if (formData.email && !validateEmail(formData.email)) {
+        setErrors(prev => ({ ...prev, email: "Only @gmail.com addresses are allowed." }));
+      }
+      return;
     }
-    
+
     try {
       const res = await api.post('/auth/check-email', { email: formData.email });
       if (res.exists) {
-         setErrors(prev => ({ ...prev, email: "This email is already registered." }));
+        setErrors(prev => ({ ...prev, email: "This email is already registered." }));
       } else {
-         setErrors(prev => ({ ...prev, email: null })); 
+        setErrors(prev => ({ ...prev, email: null }));
       }
     } catch (err) {
       console.error("Email check failed:", err);
@@ -260,7 +145,7 @@ const StudentRegister = () => {
 
     if (!formData.email) newErrors.email = "Email is required";
     else if (!validateEmail(formData.email)) newErrors.email = "Only valid @gmail.com addresses allowed";
-    else if (errors.email) newErrors.email = errors.email; 
+    else if (errors.email) newErrors.email = errors.email;
 
     if (!formData.studentPhone) newErrors.studentPhone = "Student Phone is required";
     else if (!validatePhone(formData.studentPhone)) newErrors.studentPhone = "Invalid Phone (Must be 11 digits)";
@@ -302,9 +187,19 @@ const StudentRegister = () => {
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 200 * 1024) { 
-      setErrors(p => ({...p, photo: 'Photo must be less than 200KB'})); 
-      return; 
+    if (file.size > 50 * 1024) {
+      setErrors(p => ({
+        ...p,
+        photo: (
+          <span>
+            Photo must be less than 50KB.
+            <a href="https://image.pi7.org/compress-image-to-50kb" target="_blank" rel="noreferrer" className="text-blue-600 underline ml-1">
+              Compress here
+            </a>
+          </span>
+        )
+      }));
+      return;
     }
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -319,7 +214,7 @@ const StudentRegister = () => {
     const isALevel = formData.programme === 'A-Level';
 
     const subjects = {
-      Science: isALevel 
+      Science: isALevel
         ? ["Mathematics", "Further Mathematics", "Physics", "Chemistry", "Biology", "Agricultural Science", "Computer Science", "Geography", "Statistics", "Economics"]
         : ["Mathematics", "English Language", "Physics", "Chemistry", "Biology", "Agricultural Science", "Further Mathematics", "Computer Studies", "Geography", "Civic Education", "Economics", "Marketing", "Data Processing", "Technical Drawing", "Animal Husbandry", "Fisheries", "Dyeing & Bleaching", "Catering Craft"],
 
@@ -361,7 +256,7 @@ const StudentRegister = () => {
     if (!formData.termsAccepted) return alert("Please accept terms and conditions");
     if (!formData.signature) return alert("Please provide your digital signature");
 
-    if (passwordScore < 2) { 
+    if (passwordScore < 2) {
       return alert("Password is too weak! Please add numbers, uppercase letters, or use more characters.");
     }
 
@@ -372,16 +267,16 @@ const StudentRegister = () => {
     setLoading(true);
 
     try {
-      const response = await api.post('/students/register', { 
-        ...formData, 
-        role: 'student' 
+      const response = await api.post('/students/register', {
+        ...formData,
+        role: 'student'
       });
       alert(`Success! Your Student ID: ${response.studentId}`);
       navigate('/auth/student');
     } catch (error) {
       alert(`Error: ${error.message}`);
-    } finally { 
-      setLoading(false); 
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -389,30 +284,30 @@ const StudentRegister = () => {
   const downloadAsJPG = async () => {
     if (!printRef.current) return;
     try {
-        const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
-        const image = canvas.toDataURL("image/jpeg", 1.0);
-        const link = document.createElement("a");
-        link.href = image;
-        link.download = `${formData.surname}_Registration_Form.jpg`;
-        link.click();
+      const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
+      const image = canvas.toDataURL("image/jpeg", 1.0);
+      const link = document.createElement("a");
+      link.href = image;
+      link.download = `${formData.surname}_Registration_Form.jpg`;
+      link.click();
     } catch (err) {
-        alert("Error generating image. Please try again.");
+      alert("Error generating image. Please try again.");
     }
   };
 
   const downloadAsPDF = async () => {
     if (!printRef.current) return;
     try {
-        const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`${formData.surname}_Registration_Form.pdf`);
+      const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${formData.surname}_Registration_Form.pdf`);
     } catch (err) {
-        alert("Error generating PDF. Please try again.");
+      alert("Error generating PDF. Please try again.");
     }
   };
 
@@ -421,30 +316,30 @@ const StudentRegister = () => {
       <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
 
         <div className="bg-blue-900 px-8 py-8 text-white text-center">
-           <img src="/meritlogo.jpg" alt="MCAS" className="w-20 h-20 rounded-full bg-white p-1 shadow-lg mx-auto mb-4 object-contain" />
-           <h1 className="text-3xl font-black tracking-tight">STUDENT REGISTRATION</h1>
-           <p className="text-blue-200 text-sm font-medium mt-1">Merit College of Advanced Studies • 2025/2026</p>
+          <img src="/meritlogo.jpg" alt="MCAS" className="w-20 h-20 rounded-full bg-white p-1 shadow-lg mx-auto mb-4 object-contain" />
+          <h1 className="text-3xl font-black tracking-tight">STUDENT REGISTRATION</h1>
+          <p className="text-blue-200 text-sm font-medium mt-1">Merit College of Advanced Studies • 2025/2026</p>
         </div>
 
         <div className="border-t border-slate-200">
 
           {/* 1. PERSONAL INFORMATION */}
-          <AccordionItem 
+          <AccordionItem
             isOpen={activeSection === 'personal'}
-            title="Personal Information" 
+            title="Personal Information"
             icon={User}
             onToggle={() => setActiveSection(activeSection === 'personal' ? '' : 'personal')}
           >
             <div className="space-y-6 mt-4">
               <div className="flex flex-col items-center mb-6">
-                <div 
-                  className={`w-32 h-32 rounded-full border-4 border-dashed flex items-center justify-center cursor-pointer overflow-hidden relative group ${errors.photo ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-slate-50 hover:border-blue-500'}`} 
+                <div
+                  className={`w-32 h-32 rounded-full border-4 border-dashed flex items-center justify-center cursor-pointer overflow-hidden relative group ${errors.photo ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-slate-50 hover:border-blue-500'}`}
                   onClick={() => fileInputRef.current.click()}
                 >
                   {formData.photoPreview ? (
-                    <img src={formData.photoPreview} className="w-full h-full object-cover" alt="Preview"/>
+                    <img src={formData.photoPreview} className="w-full h-full object-cover" alt="Preview" />
                   ) : (
-                    <Upload className="text-slate-400 group-hover:text-blue-500" size={28}/>
+                    <Upload className="text-slate-400 group-hover:text-blue-500" size={28} />
                   )}
                 </div>
                 <p className="text-xs text-slate-500 mt-2 font-bold">Tap to Upload Passport</p>
@@ -453,60 +348,60 @@ const StudentRegister = () => {
               </div>
 
               <div className="grid md:grid-cols-2 gap-5">
-                <InputField label="Surname" value={formData.surname} onChange={v => setFormData({...formData, surname: v})} error={errors.surname} />
-                <InputField label="First Name" value={formData.lastName} onChange={v => setFormData({...formData, lastName: v})} error={errors.lastName} />
-                <InputField label="Middle Name" value={formData.middleName} onChange={v => setFormData({...formData, middleName: v})} />
+                <InputField label="Surname" value={formData.surname} onChange={v => setFormData({ ...formData, surname: v })} error={errors.surname} />
+                <InputField label="First Name" value={formData.lastName} onChange={v => setFormData({ ...formData, lastName: v })} error={errors.lastName} />
+                <InputField label="Middle Name" value={formData.middleName} onChange={v => setFormData({ ...formData, middleName: v })} />
 
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">Gender</label>
-                  <select className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})}>
+                  <select className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition" value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })}>
                     <option value="">Select</option><option>Male</option><option>Female</option>
                   </select>
                   {errors.gender && <span className="text-red-500 text-xs">{errors.gender}</span>}
                 </div>
 
-                <InputField label="Date of Birth" type="date" value={formData.dateOfBirth} onChange={v => setFormData({...formData, dateOfBirth: v})} error={errors.dateOfBirth} />
-                <InputField 
-                    label="Email Address" 
-                    type="email" 
-                    placeholder="student@gmail.com"
-                    value={formData.email} 
-                    onChange={v => setFormData({...formData, email: v})} 
-                    onBlur={handleEmailBlur} 
-                    error={errors.email} 
+                <InputField label="Date of Birth" type="date" value={formData.dateOfBirth} onChange={v => setFormData({ ...formData, dateOfBirth: v })} error={errors.dateOfBirth} />
+                <InputField
+                  label="Email Address"
+                  type="email"
+                  placeholder="student@gmail.com"
+                  value={formData.email}
+                  onChange={v => setFormData({ ...formData, email: v })}
+                  onBlur={handleEmailBlur}
+                  error={errors.email}
                 />
 
-                <InputField label="Student Phone" type="tel" value={formData.studentPhone} onChange={v => setFormData({...formData, studentPhone: v})} error={errors.studentPhone} />
-                <InputField label="Parent Phone" type="tel" value={formData.parentsPhone} onChange={v => setFormData({...formData, parentsPhone: v})} error={errors.parentsPhone} />
+                <InputField label="Student Phone" type="tel" value={formData.studentPhone} onChange={v => setFormData({ ...formData, studentPhone: v })} error={errors.studentPhone} />
+                <InputField label="Parent Phone" type="tel" value={formData.parentsPhone} onChange={v => setFormData({ ...formData, parentsPhone: v })} error={errors.parentsPhone} />
 
-                <InputField label="State of Origin" value={formData.stateOfOrigin} onChange={v => setFormData({...formData, stateOfOrigin: v})} error={errors.stateOfOrigin} />
-                <InputField label="LGA" value={formData.lga} onChange={v => setFormData({...formData, lga: v})} error={errors.lga} />
+                <InputField label="State of Origin" value={formData.stateOfOrigin} onChange={v => setFormData({ ...formData, stateOfOrigin: v })} error={errors.stateOfOrigin} />
+                <InputField label="LGA" value={formData.lga} onChange={v => setFormData({ ...formData, lga: v })} error={errors.lga} />
               </div>
 
               <div className="w-full">
                 <label className="block text-sm font-bold text-slate-700 mb-2">Permanent Address</label>
-                <textarea className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition h-20 resize-none" value={formData.permanentAddress} onChange={e => setFormData({...formData, permanentAddress: e.target.value})} />
+                <textarea className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition h-20 resize-none" value={formData.permanentAddress} onChange={e => setFormData({ ...formData, permanentAddress: e.target.value })} />
                 {errors.permanentAddress && <span className="text-red-500 text-xs">{errors.permanentAddress}</span>}
               </div>
 
               <div className="border-t border-slate-200 pt-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <Lock className="text-blue-900" size={18}/>
+                  <Lock className="text-blue-900" size={18} />
                   <h3 className="font-bold text-slate-800">Account Password</h3>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-5">
                   <div className="relative">
                     <label className="block text-sm font-bold text-slate-700 mb-2">Password</label>
-                    <input 
-                      type={showPassword ? "text" : "password"} 
-                      className="w-full px-4 py-3 pr-10 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition" 
-                      value={formData.password} 
-                      onChange={e => setFormData({...formData, password: e.target.value})} 
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      className="w-full px-4 py-3 pr-10 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition"
+                      value={formData.password}
+                      onChange={e => setFormData({ ...formData, password: e.target.value })}
                       placeholder="Create password"
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-11 text-slate-400 hover:text-slate-600">
-                      {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
 
                     {formData.password && (
@@ -529,11 +424,11 @@ const StudentRegister = () => {
 
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Confirm Password</label>
-                    <input 
-                      type="password" 
-                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition" 
-                      value={formData.confirmPassword} 
-                      onChange={e => setFormData({...formData, confirmPassword: e.target.value})} 
+                    <input
+                      type="password"
+                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition"
+                      value={formData.confirmPassword}
+                      onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
                       placeholder="Confirm password"
                     />
                     {errors.confirmPassword && <span className="text-red-500 text-xs mt-1 block">{errors.confirmPassword}</span>}
@@ -541,39 +436,39 @@ const StudentRegister = () => {
                 </div>
               </div>
 
-              <input 
-                type="text" 
-                name="website_url_check" 
+              <input
+                type="text"
+                name="website_url_check"
                 tabIndex="-1"
-                style={{ position: 'absolute', left: '-9999px' }} 
-                value={botField} 
-                onChange={(e) => setBotField(e.target.value)} 
+                style={{ position: 'absolute', left: '-9999px' }}
+                value={botField}
+                onChange={(e) => setBotField(e.target.value)}
               />
 
-              <button 
-                onClick={() => { if(validatePersonal()) setActiveSection('academic'); }}
+              <button
+                onClick={() => { if (validatePersonal()) setActiveSection('academic'); }}
                 className="w-full bg-blue-900 text-white py-4 rounded-xl font-bold mt-4 hover:shadow-lg transition flex items-center justify-center gap-2"
               >
-                Save & Continue <ChevronRight size={18}/>
+                Save & Continue <ChevronRight size={18} />
               </button>
             </div>
           </AccordionItem>
 
           {/* 2. ACADEMIC DETAILS */}
-          <AccordionItem 
+          <AccordionItem
             isOpen={activeSection === 'academic'}
-            title="Academic Programme" 
+            title="Academic Programme"
             icon={Book}
             onToggle={() => {
-                if(!validatePersonal()) return alert("Please complete Personal Info first.");
-                setActiveSection(activeSection === 'academic' ? '' : 'academic');
+              if (!validatePersonal()) return alert("Please complete Personal Info first.");
+              setActiveSection(activeSection === 'academic' ? '' : 'academic');
             }}
           >
             <div className="space-y-6 mt-4">
               <div className="grid md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">Programme</label>
-                  <select className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition" value={formData.programme} onChange={e => setFormData({...formData, programme: e.target.value, subjects: []})}>
+                  <select className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition" value={formData.programme} onChange={e => setFormData({ ...formData, programme: e.target.value, subjects: [] })}>
                     <option value="">Select Programme</option>
                     <option value="JAMB">JAMB (Max 4)</option>
                     <option value="O-Level">O-Level (Max 9)</option>
@@ -583,7 +478,7 @@ const StudentRegister = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">Department</label>
-                  <select className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value, subjects: []})}>
+                  <select className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition" value={formData.department} onChange={e => setFormData({ ...formData, department: e.target.value, subjects: [] })}>
                     <option value="">Select Department</option>
                     <option value="Science">Science</option>
                     <option value="Art">Arts</option>
@@ -596,7 +491,7 @@ const StudentRegister = () => {
               {formData.department && (
                 <div className="bg-slate-50 p-5 rounded-xl border-2 border-slate-200">
                   <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                    <CheckCircle size={18} className="text-green-600"/> 
+                    <CheckCircle size={18} className="text-green-600" />
                     Select Subjects ({formData.subjects.length}/{getMaxSubjects()} selected)
                   </h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -604,13 +499,12 @@ const StudentRegister = () => {
                       const isSel = formData.subjects.includes(sub);
                       const isComp = (formData.programme === 'O-Level' || formData.programme === 'JAMB') && sub === 'English Language';
                       return (
-                        <button 
+                        <button
                           key={sub}
                           onClick={() => handleSubjectToggle(sub)}
                           disabled={!isSel && formData.subjects.length >= getMaxSubjects()}
-                          className={`p-3 text-xs font-bold rounded-lg border-2 text-left transition ${
-                            isSel ? 'bg-blue-900 text-white border-blue-900 shadow-md' : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400'
-                          } ${!isSel && formData.subjects.length >= getMaxSubjects() ? 'opacity-40 cursor-not-allowed' : ''}`}
+                          className={`p-3 text-xs font-bold rounded-lg border-2 text-left transition ${isSel ? 'bg-blue-900 text-white border-blue-900 shadow-md' : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400'
+                            } ${!isSel && formData.subjects.length >= getMaxSubjects() ? 'opacity-40 cursor-not-allowed' : ''}`}
                         >
                           {isSel && '✓ '}{sub} {isComp && '(Required)'}
                         </button>
@@ -623,36 +517,36 @@ const StudentRegister = () => {
 
               {formData.programme === 'A-Level' && (
                 <div className="grid md:grid-cols-2 gap-5">
-                  <InputField label="Preferred University" value={formData.university} onChange={v => setFormData({...formData, university: v})} />
-                  <InputField label="Preferred Course" value={formData.course} onChange={v => setFormData({...formData, course: v})} />
+                  <InputField label="Preferred University" value={formData.university} onChange={v => setFormData({ ...formData, university: v })} />
+                  <InputField label="Preferred Course" value={formData.course} onChange={v => setFormData({ ...formData, course: v })} />
                 </div>
               )}
 
               <div className="flex gap-3">
                 <button onClick={() => setActiveSection('personal')} className="flex-1 py-4 border-2 border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition">
-                  <ChevronLeft className="inline mr-1" size={18}/> Back
+                  <ChevronLeft className="inline mr-1" size={18} /> Back
                 </button>
-                <button onClick={() => { if(validateAcademic()) setActiveSection('review'); }} className="flex-1 bg-blue-900 text-white py-4 rounded-xl font-bold hover:shadow-lg transition">
-                  Continue <ChevronRight className="inline ml-1" size={18}/>
+                <button onClick={() => { if (validateAcademic()) setActiveSection('review'); }} className="flex-1 bg-blue-900 text-white py-4 rounded-xl font-bold hover:shadow-lg transition">
+                  Continue <ChevronRight className="inline ml-1" size={18} />
                 </button>
               </div>
             </div>
           </AccordionItem>
 
           {/* 3. REVIEW & SUBMIT */}
-          <AccordionItem 
+          <AccordionItem
             isOpen={activeSection === 'review'}
-            title="Review & Submit" 
+            title="Review & Submit"
             icon={FileText}
             onToggle={() => {
-                if(!validatePersonal() || !validateAcademic()) return alert("Please complete previous sections.");
-                setActiveSection(activeSection === 'review' ? '' : 'review');
+              if (!validatePersonal() || !validateAcademic()) return alert("Please complete previous sections.");
+              setActiveSection(activeSection === 'review' ? '' : 'review');
             }}
           >
             <div className="space-y-6 mt-4">
               <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-xl">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="text-yellow-600 shrink-0 mt-1" size={20}/>
+                  <AlertTriangle className="text-yellow-600 shrink-0 mt-1" size={20} />
                   <div className="text-sm text-yellow-900">
                     <p className="font-bold mb-1">Important Notice</p>
                     <p>You MUST download or print your form before submitting. Use the preview button below.</p>
@@ -673,31 +567,31 @@ const StudentRegister = () => {
               </div>
 
               <label className="flex items-center gap-3 p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition">
-                <input type="checkbox" checked={formData.termsAccepted} onChange={e => setFormData({...formData, termsAccepted: e.target.checked})} className="w-5 h-5 accent-blue-900"/>
+                <input type="checkbox" checked={formData.termsAccepted} onChange={e => setFormData({ ...formData, termsAccepted: e.target.checked })} className="w-5 h-5 accent-blue-900" />
                 <span className="text-sm font-bold text-slate-800">I have read and accept all Terms & Conditions</span>
               </label>
 
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">Digital Signature</label>
-                <input 
-                  className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition text-2xl text-blue-900" 
+                <input
+                  className="w-full px-4 py-4 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none transition text-2xl text-blue-900"
                   style={{ fontFamily: 'Brush Script MT, cursive' }}
-                  placeholder="Type Your Full Name" 
-                  value={formData.signature} 
-                  onChange={e => setFormData({...formData, signature: e.target.value})} 
+                  placeholder="Type Your Full Name"
+                  value={formData.signature}
+                  onChange={e => setFormData({ ...formData, signature: e.target.value })}
                 />
               </div>
 
               <button onClick={() => setShowPreview(true)} className="w-full py-4 border-2 border-slate-800 text-slate-800 rounded-xl font-bold flex justify-center items-center gap-2 hover:bg-slate-800 hover:text-white transition">
-                <Eye size={20}/> Preview Form & Download
+                <Eye size={20} /> Preview Form & Download
               </button>
 
-              <button 
-                onClick={handleSubmit} 
-                disabled={loading || !formData.termsAccepted} 
+              <button
+                onClick={handleSubmit}
+                disabled={loading || !formData.termsAccepted}
                 className="w-full bg-green-600 text-white py-5 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition disabled:bg-slate-300 disabled:cursor-not-allowed flex justify-center items-center gap-3"
               >
-                {loading ? <Loader2 className="animate-spin"/> : <CheckCircle size={22}/>}
+                {loading ? <Loader2 className="animate-spin" /> : <CheckCircle size={22} />}
                 Submit Application
               </button>
             </div>
@@ -708,30 +602,29 @@ const StudentRegister = () => {
 
       {/* FIXED PREVIEW MODAL */}
       {showPreview && (
-        <div className="fixed inset-0 bg-black/95 flex items-start justify-center z-50 overflow-y-auto py-10">
-          <div className="w-full max-w-[230mm] flex flex-col items-center">
-            
-            <div className="sticky top-0 bg-slate-800 text-white p-4 rounded-xl flex gap-4 mb-8 shadow-xl z-50">
-                <button onClick={downloadAsPDF} className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition">
-                    <File size={18}/> Download PDF
-                </button>
-                <button onClick={downloadAsJPG} className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition">
-                    <ImageIcon size={18}/> Download JPG
-                </button>
-                <button onClick={() => setShowPreview(false)} className="bg-white text-black px-6 py-2 rounded-lg font-bold hover:bg-slate-200 transition">
-                    Close
-                </button>
-            </div>
+        <div className="fixed inset-0 bg-black/95 flex flex-col items-center justify-start z-50 overflow-hidden pt-4">
 
-            {/* A4 CONTAINER FIXED */}
-            <div 
-                ref={printRef} 
-                className="bg-white shadow-2xl relative" 
-                style={{ width: '210mm', minHeight: '297mm', padding: '15mm' }}
+          <div className="bg-slate-800 text-white p-2 rounded-xl flex flex-wrap justify-center gap-4 mb-4 shadow-xl z-50 shrink-0">
+            <button onClick={downloadAsPDF} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition text-sm">
+              <File size={16} /> PDF
+            </button>
+            <button onClick={downloadAsJPG} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition text-sm">
+              <ImageIcon size={16} /> JPG
+            </button>
+            <button onClick={() => setShowPreview(false)} className="bg-white text-black px-4 py-2 rounded-lg font-bold hover:bg-slate-200 transition text-sm">
+              Close
+            </button>
+          </div>
+
+          {/* A4 CONTAINER - SCROLLABLE WRAPPER */}
+          <div className="w-full h-full overflow-auto flex justify-center items-start pb-20 px-4">
+            <div
+              ref={printRef}
+              className="bg-white shadow-2xl shrink-0 origin-top"
+              style={{ width: '210mm', minWidth: '210mm', minHeight: '297mm', padding: '15mm' }}
             >
-                <FormPreview formData={formData} />
+              <FormPreview formData={formData} />
             </div>
-
           </div>
         </div>
       )}
