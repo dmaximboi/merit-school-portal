@@ -22,28 +22,14 @@ exports.getMessages = async (req, res) => {
 };
 
 exports.sendMessage = async (req, res) => {
-    const { message, image } = req.body;
+    const { message } = req.body;
 
-    // Require either message or image
-    if ((!message || message.trim() === "") && !image) {
-        return res.status(400).json({ error: "Message or image required" });
+    // Require message text (image upload disabled until DB column exists)
+    if (!message || message.trim() === "") {
+        return res.status(400).json({ error: "Message is required" });
     }
 
     try {
-        let imageUrl = null;
-        let imageThumbnail = null;
-
-        // Upload image if provided
-        if (image) {
-            const uploadResult = await uploadToCloudinary(image, 'chat');
-            if (uploadResult.success) {
-                imageUrl = uploadResult.url;
-                imageThumbnail = getThumbnailUrl(uploadResult.publicId);
-            } else {
-                console.error('Image upload failed:', uploadResult.error);
-            }
-        }
-
         // Get user name based on role
         let senderName = 'User';
         if (req.role === 'student') {
@@ -56,16 +42,16 @@ exports.sendMessage = async (req, res) => {
             senderName = req.user.parent_name || 'Parent';
         }
 
+        // Only insert basic text message (no image_url column in current DB)
         const { error } = await supabase.from('chat_messages').insert([{
             sender_id: req.user.id,
             sender_name: senderName,
             sender_role: req.role || 'student',
-            message: message?.trim() || '',
-            image_url: imageUrl
+            message: message.trim()
         }]);
 
         if (error) throw error;
-        res.json({ success: true, imageUrl });
+        res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
