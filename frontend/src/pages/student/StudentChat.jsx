@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
-import { MessageCircle, Send, User, Shield, RefreshCw, Image, X, Loader2, AlertTriangle } from 'lucide-react';
+import { MessageCircle, Send, User, Shield, RefreshCw, Image, X, Loader2, AlertTriangle, Edit2, Trash2 } from 'lucide-react';
 
 // --- SECURITY: Content Sanitization ---
 const sanitizeInput = (text) => {
@@ -46,6 +46,11 @@ const StudentChat = () => {
   const [error, setError] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
+
+  // Edit/Delete State
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [deletingMessageId, setDeletingMessageId] = useState(null);
 
   // Rate Limiting State
   const [isRateLimited, setIsRateLimited] = useState(false);
@@ -188,6 +193,30 @@ const StudentChat = () => {
     }
   };
 
+  const handleEditMessage = async (messageId) => {
+    if (!editText.trim()) return;
+
+    try {
+      await api.put(`/chat/${messageId}`, { message: editText }, token);
+      setEditingMessageId(null);
+      setEditText("");
+      fetchMessages();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to edit message");
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    if (!window.confirm("Are you sure you want to delete this message?")) return;
+
+    try {
+      await api.delete(`/chat/${messageId}`, token);
+      fetchMessages();
+    } catch (err) {
+      alert("Failed to delete message");
+    }
+  };
+
   const isButtonDisabled = (!inputText.trim() && !imageBase64) || sending || isRateLimited;
 
   return (
@@ -216,6 +245,7 @@ const StudentChat = () => {
         {messages.map((msg, idx) => {
           const isMe = msg.sender_id === user?.id;
           const name = msg.sender_name || 'Unknown';
+          const isEditing = editingMessageId === msg.id;
 
           return (
             <div key={msg.id || idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -242,13 +272,62 @@ const StudentChat = () => {
                   </div>
                 )}
 
-                {/* Message Text */}
-                {msg.message && (
-                  <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                {/* Message Text or Edit Input */}
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 rounded-lg text-slate-900 focus:outline-none"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditMessage(msg.id)}
+                        className="px-3 py-1 bg-green-500 text-white rounded text-xs font-bold"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => { setEditingMessageId(null); setEditText(""); }}
+                        className="px-3 py-1 bg-slate-400 text-white rounded text-xs font-bold"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  msg.message && (
+                    <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                  )
                 )}
 
-                <div className={`text-[10px] mt-2 text-right ${isMe ? 'text-blue-200' : 'text-slate-400'}`}>
-                  {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div className={`text-[10px] mt-2 flex items-center justify-between ${isMe ? 'text-blue-200' : 'text-slate-400'}`}>
+                  <span>
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {msg.is_edited && <span className="ml-2 italic">(edited)</span>}
+                  </span>
+
+                  {/* Edit/Delete Buttons (only for own messages) */}
+                  {isMe && !msg.is_deleted && (
+                    <div className="flex gap-2 ml-2">
+                      <button
+                        onClick={() => { setEditingMessageId(msg.id); setEditText(msg.message); }}
+                        className="hover:scale-110 transition"
+                        title="Edit message"
+                      >
+                        <Edit2 size={12} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className="hover:scale-110 transition"
+                        title="Delete message"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -322,8 +401,8 @@ const StudentChat = () => {
             type="submit"
             disabled={isButtonDisabled}
             className={`p-4 text-white rounded-2xl transition shadow-lg disabled:opacity-50 ${isRateLimited
-                ? 'bg-slate-400 cursor-not-allowed'
-                : 'bg-blue-900 hover:bg-blue-800'
+              ? 'bg-slate-400 cursor-not-allowed'
+              : 'bg-blue-900 hover:bg-blue-800'
               }`}
             title={isRateLimited ? 'Please wait before sending another message' : 'Send message'}
           >

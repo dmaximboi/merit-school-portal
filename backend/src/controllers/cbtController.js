@@ -278,15 +278,19 @@ exports.bulkGenerateQuestions = async (req, res) => {
 
     if (questions.length === 0) return res.status(500).json({ error: "Generation Failed" });
 
-    // Save to DB
+    // Save to DB - remove ai_model field temporarily until column is added
     const { data, error } = await supabase
       .from('cbt_questions')
-      .insert(questions.map(q => ({
-        ...q,
-        subject,
-        created_by: 'ai_bulk',
-        created_at: new Date().toISOString()
-      })))
+      .insert(questions.map(q => {
+        // Destructure to remove ai_model
+        const { ai_model, ...questionData } = q;
+        return {
+          ...questionData,
+          subject,
+          created_by: 'ai_bulk',
+          created_at: new Date().toISOString()
+        };
+      }))
       .select();
 
     if (error) throw error;

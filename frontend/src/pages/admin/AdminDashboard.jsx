@@ -879,7 +879,7 @@ const AdminDashboard = () => {
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 h-[600px] flex flex-col">
               <h3 className="font-bold text-xl mb-6 text-slate-900">Recent Broadcasts</h3>
               <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                {broadcastList.length === 0 ? <p className="text-slate-400 text-center py-10">No broadcasts found.</p> :
+                {!broadcastList || broadcastList.length === 0 ? <p className="text-slate-400 text-center py-10">No broadcasts found.</p> :
                   broadcastList.map(msg => (
                     <div key={msg.id} className="p-5 bg-slate-50 rounded-xl border border-slate-100 group hover:border-blue-200 transition">
                       <div className="flex justify-between items-start mb-2">

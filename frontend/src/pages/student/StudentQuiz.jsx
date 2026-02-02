@@ -101,6 +101,14 @@ const StudentQuiz = () => {
 
   const submitQuiz = async () => {
     if (!activeQuiz) return;
+
+    // Defensive check: ensure questions exists and is an array
+    if (!activeQuiz.questions || !Array.isArray(activeQuiz.questions)) {
+      alert("Quiz data is invalid. Please try again.");
+      setActiveQuiz(null);
+      return;
+    }
+
     // Calculate local score
     let score = 0;
     activeQuiz.questions.forEach((q, i) => {
@@ -165,11 +173,11 @@ const StudentQuiz = () => {
           <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
             <h1 className="text-2xl font-black text-slate-900 mb-6 border-b pb-4">{activeQuiz.title}</h1>
             <div className="space-y-8">
-              {activeQuiz.questions.map((q, idx) => (
+              {activeQuiz.questions && Array.isArray(activeQuiz.questions) ? activeQuiz.questions.map((q, idx) => (
                 <div key={idx} className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
                   <p className="font-bold text-lg text-slate-800 mb-4">{idx + 1}. {q.question_text}</p>
                   <div className="grid gap-3">
-                    {q.options.map((opt, oIdx) => (
+                    {q.options && q.options.map((opt, oIdx) => (
                       <button
                         key={oIdx}
                         onClick={() => setQuizAnswers({ ...quizAnswers, [idx]: oIdx })}
@@ -184,7 +192,14 @@ const StudentQuiz = () => {
                     ))}
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="text-center py-10 text-red-500">
+                  <p className="font-bold">Error: Quiz questions are not available.</p>
+                  <button onClick={() => setActiveQuiz(null)} className="mt-4 px-6 py-2 bg-slate-900 text-white rounded-lg">
+                    Return to Quiz Hub
+                  </button>
+                </div>
+              )}
             </div>
             <button onClick={submitQuiz} className="w-full mt-8 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg transition">Submit Answers</button>
           </div>

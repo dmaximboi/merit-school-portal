@@ -11,18 +11,19 @@ const { verifyAdmin, verifyStaff, verifyAny } = require('../middleware/authMiddl
 // Public routes
 router.get('/', enotesController.getENotes);
 router.get('/subjects', enotesController.getSubjects);
-router.get('/:id', enotesController.getENote);
 router.post('/:id/download', enotesController.trackDownload);
 
-// Admin routes
 // Admin & Staff routes
 router.post('/add', verifyStaff, enotesController.addENote); // Auto-approve for Admin, Pending for Staff
 router.get('/mine', verifyStaff, enotesController.getMyENotes);
 
 // Admin only routes
+router.get('/pending', verifyAdmin, enotesController.getPendingENotes);
+router.put('/:id/approve', verifyAdmin, enotesController.approveENote);
 router.put('/:id', verifyAdmin, enotesController.updateENote);
 router.delete('/:id', verifyAdmin, enotesController.deleteENote);
-router.put('/:id/approve', verifyAdmin, enotesController.approveENote);
-router.get('/pending', verifyAdmin, enotesController.getPendingENotes);
+
+// Public route with dynamic ID (must come after specific routes)
+router.get('/:id', enotesController.getENote);
 
 module.exports = router;

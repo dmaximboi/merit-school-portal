@@ -5,28 +5,42 @@ exports.getMessages = async (req, res) => {
     try {
         const { limit = 50 } = req.query;
 
-        // Fetch messages with sender info if needed, or rely on raw fields
+        // Fetch messages with proper joins to get student names
         const { data, error } = await supabase
             .from('chat_messages')
-            .select('*')
+            .select(`
+                *,
+                students:sender_id (first_name, middle_name, surname)
+            `)
+            .eq('is_deleted', false)
             .order('created_at', { ascending: false })
             .limit(limit);
 
         if (error) throw error;
 
+        // Enhance sender names with actual student data
+        const enhancedMessages = data.map(msg => {
+            if (msg.sender_role === 'student' && msg.students) {
+                // Use first_name or middle_name, not surname
+                const displayName = msg.students.first_name || msg.students.middle_name || 'Student';
+                return { ...msg, sender_name: displayName };
+            }
+            return msg;
+        });
+
         // Return in chronological order (Oldest -> Newest)
-        res.json(data.reverse());
+        res.json(enhancedMessages.reverse());
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
 
 exports.sendMessage = async (req, res) => {
-    const { message } = req.body;
+    const { message, image } = req.body;
 
-    // Require message text (image upload disabled until DB column exists)
-    if (!message || message.trim() === "") {
-        return res.status(400).json({ error: "Message is required" });
+    // Require either message or image
+    if ((!message || message.trim() === "") && !image) {
+        return res.status(400).json({ error: "Message or image is required" });
     }
 
     try {
@@ -42,12 +56,24 @@ exports.sendMessage = async (req, res) => {
             senderName = req.user.parent_name || 'Parent';
         }
 
-        // Only insert basic text message (no image_url column in current DB)
+        let imageUrl = null;
+
+        // Handle image upload if provided
+        if (image) {
+            try {
+                imageUrl = await uploadToCloudinary(image);
+            } catch (uploadErr) {
+                console.error('Image upload failed:', uploadErr);
+                return res.status(400).json({ error: 'Image upload failed. Please try again or use a smaller image.' });
+            }
+        }
+
         const { error } = await supabase.from('chat_messages').insert([{
             sender_id: req.user.id,
             sender_name: senderName,
             sender_role: req.role || 'student',
-            message: message.trim()
+            message: message ? message.trim() : null,
+            image_url: imageUrl
         }]);
 
         if (error) throw error;
