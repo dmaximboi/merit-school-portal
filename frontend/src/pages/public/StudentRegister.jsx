@@ -57,10 +57,27 @@ const StudentRegister = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [botField, setBotField] = useState('');
-  const [isDownloaded, setIsDownloaded] = useState(false); // NEW: Track download status
+  const [isDownloaded, setIsDownloaded] = useState(false);
 
   const fileInputRef = useRef(null);
-  const printRef = useRef(null); // Reference for the A4 container
+  const printRef = useRef(null);
+
+  // CRITICAL FIX: Declare formData and errors BEFORE useEffects that depend on them
+  const [formData, setFormData] = useState({
+    surname: '', middleName: '', lastName: '',
+    gender: '', dateOfBirth: '',
+    stateOfOrigin: '', lga: '', permanentAddress: '',
+    parentsPhone: '', studentPhone: '', email: '',
+    password: '', confirmPassword: '',
+    programme: '', department: '',
+    subjects: [],
+    university: '', course: '',
+    photoPreview: null,
+    signature: '',
+    termsAccepted: false
+  });
+
+  const [errors, setErrors] = useState({});
 
   // --- AUTO-SAVE LOGIC (5 Minutes Session) ---
   useEffect(() => {
@@ -96,21 +113,7 @@ const StudentRegister = () => {
     }
   }, [formData]);
 
-  const [formData, setFormData] = useState({
-    surname: '', middleName: '', lastName: '',
-    gender: '', dateOfBirth: '',
-    stateOfOrigin: '', lga: '', permanentAddress: '',
-    parentsPhone: '', studentPhone: '', email: '',
-    password: '', confirmPassword: '',
-    programme: '', department: '',
-    subjects: [],
-    university: '', course: '',
-    photoPreview: null,
-    signature: '',
-    termsAccepted: false
-  });
-
-  const [errors, setErrors] = useState({});
+  // formData and errors moved above to fix hoisting issue
 
   // --- PASSWORD STRENGTH CHECKER ---
   const checkStrength = (pass) => {
