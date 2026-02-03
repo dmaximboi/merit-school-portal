@@ -12,6 +12,7 @@ import {
 import AdmissionLetter from '../../components/shared/AdmissionLetter';
 import LibraryView from '../../components/shared/LibraryView';
 import AdminENotesView from './AdminENotesView';
+import ChatInterface from '../../components/shared/ChatInterface';
 import FormPreview from '../../components/FormPreview';
 import AdminPriceControls from '../../components/admin/AdminPriceControls';
 import AdminCbtPanel from '../../components/admin/AdminCbtPanel';
@@ -392,6 +393,7 @@ const AdminDashboard = () => {
           <TabBtn icon={<Shield />} label="Staff" active={activeTab === 'staff'} expanded={sidebarOpen} onClick={() => setActiveTab('staff')} />
           <TabBtn icon={<CreditCard />} label="Transactions" active={activeTab === 'transactions'} expanded={sidebarOpen} onClick={() => setActiveTab('transactions')} />
           <TabBtn icon={<BrainCircuit />} label="CBT & Quiz" active={activeTab === 'cbt'} expanded={sidebarOpen} onClick={() => setActiveTab('cbt')} />
+          <TabBtn icon={<Send />} label="Chat" active={activeTab === 'chat'} expanded={sidebarOpen} onClick={() => setActiveTab('chat')} />
           <TabBtn icon={<DollarSign />} label="Settings" active={activeTab === 'settings'} expanded={sidebarOpen} onClick={() => setActiveTab('settings')} />
         </nav>
 
@@ -631,7 +633,7 @@ const AdminDashboard = () => {
                   transactionLogs.map(tx => (
                     <tr key={tx.id} className="hover:bg-slate-50">
                       <td className="p-5 text-slate-600">{new Date(tx.created_at).toLocaleDateString()}</td>
-                      <td className="p-5 font-bold">{tx.students?.full_name || 'Unknown'}</td>
+                      <td className="p-5 font-bold">{tx.students ? `${tx.students.surname} ${tx.students.first_name}` : 'Unknown'}</td>
                       <td className="p-5 font-mono text-xs">{tx.transaction_ref || tx.reference}</td>
                       <td className="p-5">
                         <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${tx.status === 'approved' ? 'bg-green-100 text-green-700' : tx.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
@@ -897,6 +899,18 @@ const AdminDashboard = () => {
                     </div>
                   ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'chat' && (
+          <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+              <h2 className="text-2xl font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <Send className="text-purple-600" /> Institution Chat
+              </h2>
+              <p className="text-slate-500 mb-6">Communicate with students and staff in real-time.</p>
+              <ChatInterface user={user} token={token} role={role} />
             </div>
           </div>
         )}
