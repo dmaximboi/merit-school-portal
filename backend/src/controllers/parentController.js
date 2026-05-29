@@ -41,10 +41,17 @@ exports.parentLogin = async (req, res) => {
     }
 
     const jwt = require('jsonwebtoken');
-    const JWT_SECRET = process.env.JWT_SECRET || 'merit-college-parent-secret-key';
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET || JWT_SECRET.length < 32) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('CRITICAL SECURITY ERROR: JWT_SECRET must be at least 32 characters in production');
+      }
+      console.warn('⚠️  WARNING: JWT_SECRET is weak or missing. Using fallback for development only.');
+    }
+    const secretKey = JWT_SECRET || 'merit-college-parent-secret-key';
 
     // Generate Token
-    const token = jwt.sign({ studentId: student.id, role: 'parent' }, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ studentId: student.id, role: 'parent' }, secretKey, { expiresIn: '24h' });
 
     // Success
     res.json({

@@ -57,7 +57,15 @@ app.use(zeroTrust.middleware());
 app.use(monitor.middleware());
 
 // --- Cookie Parser (for secure sessions) ---
-app.use(cookieParser(process.env.COOKIE_SECRET || 'merit-school-cookie-secret'));
+const COOKIE_SECRET = process.env.COOKIE_SECRET;
+if (!COOKIE_SECRET || COOKIE_SECRET.length < 32) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('CRITICAL SECURITY ERROR: COOKIE_SECRET must be at least 32 characters in production');
+  }
+  console.warn('⚠️  WARNING: COOKIE_SECRET is weak or missing. Generate a strong secret for production.');
+  console.warn('   Run: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+}
+app.use(cookieParser(COOKIE_SECRET || 'merit-school-cookie-secret'));
 
 // --- Content Security Policy ---
 app.use(cspMiddleware);

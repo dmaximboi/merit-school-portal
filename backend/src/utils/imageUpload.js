@@ -3,8 +3,15 @@
  * Handles image compression and Cloudinary upload for chat
  */
 
-const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'dflhuyyoa';
-const CLOUDINARY_UPLOAD_PRESET = process.env.CLOUDINARY_UPLOAD_PRESET || 'merit-school-portal';
+const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = process.env.CLOUDINARY_UPLOAD_PRESET;
+
+if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('CRITICAL SECURITY ERROR: CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET must be set in production');
+  }
+  console.warn('⚠️  WARNING: Cloudinary credentials not set. Image upload will not work.');
+}
 
 /**
  * Compress image to target size (approximately 10KB)
