@@ -190,17 +190,17 @@ CREATE OR REPLACE VIEW public.view_active_subs AS
 SELECT 
   cs.id,
   cs.student_id,
+  cs.plan_type,
+  cs.amount_paid,
   cs.start_date,
-  cs.end_date,
-  cs.is_active,
+  cs.expiry_date,
   s.student_id_text,
   s.surname,
   s.first_name,
   s.email
 FROM public.cbt_subscriptions cs
 JOIN public.students s ON cs.student_id = s.id
-WHERE cs.is_active = true
-  AND cs.end_date > NOW();
+WHERE cs.expiry_date > NOW();
 
 -- 5. Protect sensitive column in staff_tokens by creating a secure view
 CREATE OR REPLACE VIEW public.staff_tokens_secure AS
