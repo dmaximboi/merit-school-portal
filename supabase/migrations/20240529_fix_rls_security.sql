@@ -15,17 +15,18 @@ ALTER TABLE public.staff_tokens ENABLE ROW LEVEL SECURITY;
 
 -- 2. Add RLS policies for tables that had RLS enabled but no policies
 
--- activity_logs - Allow service role full access, authenticated users to read their own via email
+-- activity_logs - Allow service role full access, students to read their own
 CREATE POLICY "Service role can manage activity_logs" ON public.activity_logs
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read own activity_logs" ON public.activity_logs
+CREATE POLICY "Students can read own activity_logs" ON public.activity_logs
   FOR SELECT TO authenticated
   USING (
-    email IN (
-      SELECT email FROM public.profiles WHERE id = auth.uid()
+    student_id IN (
+      SELECT id FROM public.students
+      WHERE email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
     )
   );
 
