@@ -15,15 +15,15 @@ ALTER TABLE public.staff_tokens ENABLE ROW LEVEL SECURITY;
 
 -- 2. Add RLS policies for tables that had RLS enabled but no policies
 
--- activity_logs - Allow service role full access, authenticated users to read their own
+-- activity_logs - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage activity_logs" ON public.activity_logs
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read own activity_logs" ON public.activity_logs
+CREATE POLICY "Authenticated can read activity_logs" ON public.activity_logs
   FOR SELECT TO authenticated
-  USING (auth.uid()::text = user_id::text);
+  USING (true);
 
 -- admin_allowlist - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage admin_allowlist" ON public.admin_allowlist
@@ -35,17 +35,15 @@ CREATE POLICY "Authenticated can read admin_allowlist" ON public.admin_allowlist
   FOR SELECT TO authenticated
   USING (true);
 
--- cbt_sessions - Allow service role full access, authenticated users to read their own
+-- cbt_sessions - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage cbt_sessions" ON public.cbt_sessions
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read own cbt_sessions" ON public.cbt_sessions
+CREATE POLICY "Authenticated can read cbt_sessions" ON public.cbt_sessions
   FOR SELECT TO authenticated
-  USING (student_id::text IN (
-    SELECT id::text FROM public.students WHERE user_id = auth.uid()
-  ));
+  USING (true);
 
 -- library_books - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage library_books" ON public.library_books
@@ -57,17 +55,15 @@ CREATE POLICY "Authenticated can read library_books" ON public.library_books
   FOR SELECT TO authenticated
   USING (true);
 
--- library_purchases - Allow service role full access, authenticated users to read their own
+-- library_purchases - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage library_purchases" ON public.library_purchases
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read own library_purchases" ON public.library_purchases
+CREATE POLICY "Authenticated can read library_purchases" ON public.library_purchases
   FOR SELECT TO authenticated
-  USING (student_id::text IN (
-    SELECT id::text FROM public.students WHERE user_id = auth.uid()
-  ));
+  USING (true);
 
 -- otp_codes - Allow service role full access only
 CREATE POLICY "Service role can manage otp_codes" ON public.otp_codes
@@ -75,17 +71,15 @@ CREATE POLICY "Service role can manage otp_codes" ON public.otp_codes
   USING (true)
   WITH CHECK (true);
 
--- quiz_attempts - Allow service role full access, authenticated users to read their own
+-- quiz_attempts - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage quiz_attempts" ON public.quiz_attempts
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read own quiz_attempts" ON public.quiz_attempts
+CREATE POLICY "Authenticated can read quiz_attempts" ON public.quiz_attempts
   FOR SELECT TO authenticated
-  USING (student_id::text IN (
-    SELECT id::text FROM public.students WHERE user_id = auth.uid()
-  ));
+  USING (true);
 
 -- quizzes - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage quizzes" ON public.quizzes
@@ -141,41 +135,35 @@ CREATE POLICY "Authenticated can read subscription_fees" ON public.subscription_
   FOR SELECT TO authenticated
   USING (true);
 
--- cbt_subscriptions - Allow service role full access, authenticated users to read their own
+-- cbt_subscriptions - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage cbt_subscriptions" ON public.cbt_subscriptions
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read own cbt_subscriptions" ON public.cbt_subscriptions
+CREATE POLICY "Authenticated can read cbt_subscriptions" ON public.cbt_subscriptions
   FOR SELECT TO authenticated
-  USING (student_id::text IN (
-    SELECT id::text FROM public.students WHERE user_id = auth.uid()
-  ));
+  USING (true);
 
--- student_programs - Allow service role full access, authenticated users to read their own
+-- student_programs - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage student_programs" ON public.student_programs
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read own student_programs" ON public.student_programs
+CREATE POLICY "Authenticated can read student_programs" ON public.student_programs
   FOR SELECT TO authenticated
-  USING (student_id::text IN (
-    SELECT id::text FROM public.students WHERE user_id = auth.uid()
-  ));
+  USING (true);
 
--- subscription_transactions - Allow service role full access, authenticated users to read their own
+-- subscription_transactions - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage subscription_transactions" ON public.subscription_transactions
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read own subscription_transactions" ON public.subscription_transactions
+CREATE POLICY "Authenticated can read subscription_transactions" ON public.subscription_transactions
   FOR SELECT TO authenticated
-  USING (student_id::text IN (
-    SELECT id::text FROM public.students WHERE user_id = auth.uid()
-  ));
+  USING (true);
 
 -- security_logs - Allow service role full access only
 CREATE POLICY "Service role can manage security_logs" ON public.security_logs
@@ -189,17 +177,11 @@ CREATE POLICY "Service role can manage login_attempts" ON public.login_attempts
   USING (true)
   WITH CHECK (true);
 
--- staff_tokens - Allow service role full access, staff to read their own (without token column)
+-- staff_tokens - Allow service role full access only
 CREATE POLICY "Service role can manage staff_tokens" ON public.staff_tokens
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
-
-CREATE POLICY "Staff can read own staff_tokens" ON public.staff_tokens
-  FOR SELECT TO authenticated
-  USING (staff_id::text IN (
-    SELECT id::text FROM public.staff WHERE user_id = auth.uid()
-  ));
 
 -- 4. Fix security definer view - recreate without SECURITY DEFINER
 DROP VIEW IF EXISTS public.view_active_subs;
@@ -231,10 +213,6 @@ SELECT
   is_active
 FROM public.staff_tokens;
 
--- Grant access to the secure view instead of the table
+-- Grant access to the secure view
 GRANT SELECT ON public.staff_tokens_secure TO authenticated;
 GRANT SELECT ON public.staff_tokens_secure TO anon;
-
--- Revoke direct access to staff_tokens from anon and authenticated
-REVOKE SELECT ON public.staff_tokens FROM anon;
-REVOKE SELECT ON public.staff_tokens FROM authenticated;
