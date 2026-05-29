@@ -289,7 +289,7 @@ const LandingPage = () => {
               &copy; {currentYear} Merit College of Advanced Studies. Est. 2019. All Rights Reserved.
             </p>
             <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium uppercase tracking-widest">
-              A Demonstration by <span className="text-slate-900 font-bold">LearnovaTech</span>
+              Configuration by <a href="https://dmaximboi.vercel.app" target="_blank" rel="noopener noreferrer" className="text-slate-900 font-bold hover:underline">maxiM</a>
             </div>
           </div>
         </div>
