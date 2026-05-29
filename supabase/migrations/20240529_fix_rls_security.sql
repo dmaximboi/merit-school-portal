@@ -203,4 +203,14 @@ JOIN public.students s ON cs.student_id = s.id
 WHERE cs.expiry_date > NOW();
 
 -- 5. Protect sensitive column in staff_tokens by creating a secure view
--- Skipping this step until we know the actual schema of staff_tokens table
+CREATE OR REPLACE VIEW public.staff_tokens_secure AS
+SELECT 
+  id,
+  used_at,
+  is_active,
+  created_at
+FROM public.staff_tokens;
+
+-- Grant access to the secure view
+GRANT SELECT ON public.staff_tokens_secure TO authenticated;
+GRANT SELECT ON public.staff_tokens_secure TO anon;
