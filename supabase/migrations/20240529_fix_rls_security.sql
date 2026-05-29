@@ -15,35 +15,49 @@ ALTER TABLE public.staff_tokens ENABLE ROW LEVEL SECURITY;
 
 -- 2. Add RLS policies for tables that had RLS enabled but no policies
 
--- activity_logs - Allow service role full access, authenticated users to read
+-- activity_logs - Allow service role full access, authenticated users to read their own via email
 CREATE POLICY "Service role can manage activity_logs" ON public.activity_logs
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read activity_logs" ON public.activity_logs
+CREATE POLICY "Authenticated can read own activity_logs" ON public.activity_logs
   FOR SELECT TO authenticated
-  USING (true);
+  USING (
+    email IN (
+      SELECT email FROM public.profiles WHERE id = auth.uid()
+    )
+  );
 
--- admin_allowlist - Allow service role full access, authenticated users to read
+-- admin_allowlist - Allow service role full access, admins to read
 CREATE POLICY "Service role can manage admin_allowlist" ON public.admin_allowlist
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read admin_allowlist" ON public.admin_allowlist
+CREATE POLICY "Admins can read admin_allowlist" ON public.admin_allowlist
   FOR SELECT TO authenticated
-  USING (true);
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
 
--- cbt_sessions - Allow service role full access, authenticated users to read
+-- cbt_sessions - Allow service role full access, students to read their own
 CREATE POLICY "Service role can manage cbt_sessions" ON public.cbt_sessions
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read cbt_sessions" ON public.cbt_sessions
+CREATE POLICY "Students can read own cbt_sessions" ON public.cbt_sessions
   FOR SELECT TO authenticated
-  USING (true);
+  USING (
+    student_id IN (
+      SELECT id FROM public.students 
+      WHERE email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
+    )
+  );
 
 -- library_books - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage library_books" ON public.library_books
@@ -55,15 +69,20 @@ CREATE POLICY "Authenticated can read library_books" ON public.library_books
   FOR SELECT TO authenticated
   USING (true);
 
--- library_purchases - Allow service role full access, authenticated users to read
+-- library_purchases - Allow service role full access, students to read their own
 CREATE POLICY "Service role can manage library_purchases" ON public.library_purchases
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read library_purchases" ON public.library_purchases
+CREATE POLICY "Students can read own library_purchases" ON public.library_purchases
   FOR SELECT TO authenticated
-  USING (true);
+  USING (
+    student_id IN (
+      SELECT id FROM public.students 
+      WHERE email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
+    )
+  );
 
 -- otp_codes - Allow service role full access only
 CREATE POLICY "Service role can manage otp_codes" ON public.otp_codes
@@ -71,15 +90,20 @@ CREATE POLICY "Service role can manage otp_codes" ON public.otp_codes
   USING (true)
   WITH CHECK (true);
 
--- quiz_attempts - Allow service role full access, authenticated users to read
+-- quiz_attempts - Allow service role full access, students to read their own
 CREATE POLICY "Service role can manage quiz_attempts" ON public.quiz_attempts
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read quiz_attempts" ON public.quiz_attempts
+CREATE POLICY "Students can read own quiz_attempts" ON public.quiz_attempts
   FOR SELECT TO authenticated
-  USING (true);
+  USING (
+    student_id IN (
+      SELECT id FROM public.students 
+      WHERE email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
+    )
+  );
 
 -- quizzes - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage quizzes" ON public.quizzes
@@ -91,15 +115,17 @@ CREATE POLICY "Authenticated can read quizzes" ON public.quizzes
   FOR SELECT TO authenticated
   USING (true);
 
--- staff - Allow service role full access, authenticated users to read
+-- staff - Allow service role full access, staff to read their own
 CREATE POLICY "Service role can manage staff" ON public.staff
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read staff" ON public.staff
+CREATE POLICY "Staff can read own staff" ON public.staff
   FOR SELECT TO authenticated
-  USING (true);
+  USING (
+    email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
+  );
 
 -- timetables - Allow service role full access, authenticated users to read
 CREATE POLICY "Service role can manage timetables" ON public.timetables
@@ -135,35 +161,50 @@ CREATE POLICY "Authenticated can read subscription_fees" ON public.subscription_
   FOR SELECT TO authenticated
   USING (true);
 
--- cbt_subscriptions - Allow service role full access, authenticated users to read
+-- cbt_subscriptions - Allow service role full access, students to read their own
 CREATE POLICY "Service role can manage cbt_subscriptions" ON public.cbt_subscriptions
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read cbt_subscriptions" ON public.cbt_subscriptions
+CREATE POLICY "Students can read own cbt_subscriptions" ON public.cbt_subscriptions
   FOR SELECT TO authenticated
-  USING (true);
+  USING (
+    student_id IN (
+      SELECT id FROM public.students 
+      WHERE email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
+    )
+  );
 
--- student_programs - Allow service role full access, authenticated users to read
+-- student_programs - Allow service role full access, students to read their own
 CREATE POLICY "Service role can manage student_programs" ON public.student_programs
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read student_programs" ON public.student_programs
+CREATE POLICY "Students can read own student_programs" ON public.student_programs
   FOR SELECT TO authenticated
-  USING (true);
+  USING (
+    student_id IN (
+      SELECT id FROM public.students 
+      WHERE email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
+    )
+  );
 
--- subscription_transactions - Allow service role full access, authenticated users to read
+-- subscription_transactions - Allow service role full access, students to read their own
 CREATE POLICY "Service role can manage subscription_transactions" ON public.subscription_transactions
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated can read subscription_transactions" ON public.subscription_transactions
+CREATE POLICY "Students can read own subscription_transactions" ON public.subscription_transactions
   FOR SELECT TO authenticated
-  USING (true);
+  USING (
+    student_id IN (
+      SELECT id FROM public.students 
+      WHERE email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
+    )
+  );
 
 -- security_logs - Allow service role full access only
 CREATE POLICY "Service role can manage security_logs" ON public.security_logs
