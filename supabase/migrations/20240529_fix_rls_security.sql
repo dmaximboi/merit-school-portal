@@ -245,7 +245,7 @@ WHERE cs.expiry_date > NOW();
 
 -- 5. Protect sensitive column in staff_tokens by creating a secure view
 CREATE OR REPLACE VIEW public.staff_tokens_secure AS
-SELECT 
+SELECT
   id,
   used_at,
   is_active,
@@ -255,3 +255,111 @@ FROM public.staff_tokens;
 -- Grant access to the secure view
 GRANT SELECT ON public.staff_tokens_secure TO authenticated;
 GRANT SELECT ON public.staff_tokens_secure TO anon;
+
+-- 6. Add RLS policies for remaining tables
+
+-- e_notes - Allow service role full access, authenticated users to read active notes
+CREATE POLICY "Service role can manage e_notes" ON public.e_notes
+  FOR ALL TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Authenticated can read active e_notes" ON public.e_notes
+  FOR SELECT TO authenticated
+  USING (is_active = true);
+
+-- chat_messages - Allow service role full access, users to read their own messages
+CREATE POLICY "Service role can manage chat_messages" ON public.chat_messages
+  FOR ALL TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Users can read own chat_messages" ON public.chat_messages
+  FOR SELECT TO authenticated
+  USING (
+    sender_id IN (
+      SELECT id FROM public.students
+      WHERE email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
+    )
+    OR sender_id IN (
+      SELECT id FROM public.staff
+      WHERE email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
+    )
+  );
+
+-- payments - Allow service role full access, students to read their own
+CREATE POLICY "Service role can manage payments" ON public.payments
+  FOR ALL TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Students can read own payments" ON public.payments
+  FOR SELECT TO authenticated
+  USING (
+    student_id IN (
+      SELECT id FROM public.students
+      WHERE email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
+    )
+  );
+
+-- results - Allow service role full access, students to read their own
+CREATE POLICY "Service role can manage results" ON public.results
+  FOR ALL TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Students can read own results" ON public.results
+  FOR SELECT TO authenticated
+  USING (
+    student_id IN (
+      SELECT id FROM public.students
+      WHERE email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
+    )
+  );
+
+-- announcements - Allow service role full access, authenticated users to read
+CREATE POLICY "Service role can manage announcements" ON public.announcements
+  FOR ALL TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Authenticated can read announcements" ON public.announcements
+  FOR SELECT TO authenticated
+  USING (true);
+
+-- system_settings - Allow service role full access only
+CREATE POLICY "Service role can manage system_settings" ON public.system_settings
+  FOR ALL TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+-- 7. Restrict GraphQL API access to sensitive tables
+-- Revoke SELECT from anon and authenticated for sensitive tables
+REVOKE SELECT ON public.activity_logs FROM anon;
+REVOKE SELECT ON public.activity_logs FROM authenticated;
+REVOKE SELECT ON public.admin_allowlist FROM anon;
+REVOKE SELECT ON public.admin_allowlist FROM authenticated;
+REVOKE SELECT ON public.chat_messages FROM anon;
+REVOKE SELECT ON public.chat_messages FROM authenticated;
+REVOKE SELECT ON public.login_attempts FROM anon;
+REVOKE SELECT ON public.login_attempts FROM authenticated;
+REVOKE SELECT ON public.otp_codes FROM anon;
+REVOKE SELECT ON public.otp_codes FROM authenticated;
+REVOKE SELECT ON public.payments FROM anon;
+REVOKE SELECT ON public.payments FROM authenticated;
+REVOKE SELECT ON public.security_logs FROM anon;
+REVOKE SELECT ON public.security_logs FROM authenticated;
+REVOKE SELECT ON public.staff_tokens FROM anon;
+REVOKE SELECT ON public.staff_tokens FROM authenticated;
+REVOKE SELECT ON public.subscription_transactions FROM anon;
+REVOKE SELECT ON public.subscription_transactions FROM authenticated;
+REVOKE SELECT ON public.transaction_logs FROM anon;
+REVOKE SELECT ON public.transaction_logs FROM authenticated;
+REVOKE SELECT ON public.verification_codes FROM anon;
+REVOKE SELECT ON public.verification_codes FROM authenticated;
+
+-- 8. Fix function search path mutable warning
+ALTER FUNCTION public.update_updated_at_column SET search_path = public;
+
+-- 9. Note: Leaked password protection must be enabled in Supabase Auth dashboard
+-- This cannot be done via SQL migration - requires dashboard configuration
