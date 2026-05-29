@@ -1,22 +1,22 @@
 /**
  * Academic Session Utilities
  * Automatically calculates current academic session based on date
- * Session changes every May (new academic year starts in September but admission opens in May)
+ * Session changes every February (new academic year starts in September but admission opens in February)
  */
 
 /**
- * Get current academic session string (e.g., "2025/2026")
- * Changes to next session after May 1st each year
+ * Get current academic session string (e.g., "2026/2027")
+ * Changes to next session after February 1st each year
  * @returns {string} Current session in "YYYY/YYYY" format
  */
 export const getCurrentSession = () => {
     const now = new Date();
     const year = now.getFullYear();
-    const month = now.getMonth(); // 0-indexed (January = 0, May = 4)
+    const month = now.getMonth(); // 0-indexed (January = 0, February = 1)
 
-    // If we're in May (month 4) or later, use current year as start year
+    // If we're in February (month 1) or later, use current year as start year
     // Otherwise, use previous year as start year
-    if (month >= 4) { // May onwards
+    if (month >= 1) { // February onwards
         return `${year}/${year + 1}`;
     }
     return `${year - 1}/${year}`;
@@ -31,7 +31,7 @@ export const getNextSession = () => {
     const year = now.getFullYear();
     const month = now.getMonth();
 
-    if (month >= 4) { // May onwards
+    if (month >= 1) { // February onwards
         return `${year + 1}/${year + 2}`;
     }
     return `${year}/${year + 1}`;
@@ -39,13 +39,13 @@ export const getNextSession = () => {
 
 /**
  * Get admission status based on current date
- * Admissions typically open in May and close in August
+ * Admissions typically open in February and close in August
  * @returns {boolean} Whether admissions are currently open
  */
 export const isAdmissionOpen = () => {
     const month = new Date().getMonth();
-    // Admissions open from May (4) to August (7)
-    return month >= 4 && month <= 7;
+    // Admissions open from February (1) to August (7)
+    return month >= 1 && month <= 7;
 };
 
 /**
@@ -57,7 +57,7 @@ export const getSessionStartYear = () => {
     const year = now.getFullYear();
     const month = now.getMonth();
 
-    if (month >= 4) {
+    if (month >= 1) {
         return year;
     }
     return year - 1;

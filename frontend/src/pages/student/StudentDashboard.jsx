@@ -15,10 +15,12 @@ import AdmissionLetter from '../../components/shared/AdmissionLetter';
 import LibraryView from '../../components/shared/LibraryView';
 import ReportCard from '../../components/shared/ReportCard';
 import FlutterwavePayment from '../../components/FlutterwavePayment';
+import { getCurrentSession } from '../../lib/sessionUtils';
 
 const StudentDashboard = () => {
    const { user, token, logout } = useAuthStore();
    const navigate = useNavigate();
+   const currentSession = getCurrentSession();
 
    // --- STATE ---
    const [activeTab, setActiveTab] = useState('overview');
@@ -333,7 +335,7 @@ const StudentDashboard = () => {
                            activeTab === 'report' ? 'Academic Results' :
                               activeTab === 'payments' ? 'Financial Center' : 'Digital Library'}
                   </h1>
-                  <p className="text-slate-500 mt-1 font-medium">Session: <span className="text-blue-600 font-bold">2025/2026</span></p>
+                  <p className="text-slate-500 mt-1 font-medium">Session: <span className="text-blue-600 font-bold">{currentSession}</span></p>
                </div>
                <div className="flex gap-3">
                   <StatusBadge icon={isAccountLocked ? Lock : Shield} label={isAccountLocked ? "Unverified" : "Verified"} color={isAccountLocked ? "orange" : "green"} />
@@ -367,7 +369,7 @@ const StudentDashboard = () => {
                      <div className={`bg-white p-8 rounded-2xl shadow-soft border border-slate-200 relative overflow-hidden ${isFeatureLocked ? 'opacity-60 pointer-events-none grayscale' : ''}`}>
                         <div className="absolute top-0 right-0 p-6 opacity-5"><FileText size={120} /></div>
                         <h3 className="font-bold text-xl text-slate-900 mb-2">Admission Letter</h3>
-                        <p className="text-slate-500 mb-6 max-w-md">Download your official provisional admission letter for the 2025/2026 academic session.</p>
+                        <p className="text-slate-500 mb-6 max-w-md">Download your official provisional admission letter for the {currentSession} academic session.</p>
                         <div className="flex flex-wrap gap-3">
                            <button onClick={handleAdmissionPrint} className="btn-primary flex items-center gap-2"><Printer size={18} /> Print PDF</button>
                            <button onClick={() => handleDownload(admissionPrintRef, `Admission_${profile?.surname}`)} className="btn-secondary flex items-center gap-2"><Download size={18} /> Download</button>
@@ -498,7 +500,7 @@ const StudentDashboard = () => {
                            <CreditCard size={32} />
                         </div>
                         <h2 className="text-2xl font-bold text-slate-900">Tuition Payment</h2>
-                        <p className="text-slate-500 text-sm">Session 2025/2026 • {profile?.program_type}</p>
+                        <p className="text-slate-500 text-sm">Session {currentSession} • {profile?.program_type}</p>
                      </div>
 
                      <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 mb-8 text-center">

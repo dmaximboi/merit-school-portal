@@ -13,6 +13,7 @@ import ReportCard from '../../components/shared/ReportCard';
 import ChatInterface from '../../components/shared/ChatInterface';
 import QuizInterface from '../../components/shared/QuizInterface';
 import StaffENotesView from './StaffENotesView';
+import { getCurrentSession } from '../../lib/sessionUtils';
 
 const StaffDashboard = () => {
   const { user, token, logout } = useAuthStore();
@@ -29,7 +30,7 @@ const StaffDashboard = () => {
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [broadcasts, setBroadcasts] = useState([]);
-  const [currentSession, setCurrentSession] = useState('2025/2026');
+  const [currentSession, setCurrentSession] = useState(getCurrentSession());
   const [searchTerm, setSearchTerm] = useState('');
 
   // --- RESULT MANAGEMENT STATE ---

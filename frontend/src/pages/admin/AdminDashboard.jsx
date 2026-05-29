@@ -18,10 +18,12 @@ import AdminPriceControls from '../../components/admin/AdminPriceControls';
 import AdminCbtPanel from '../../components/admin/AdminCbtPanel';
 import StudentExport from '../../components/admin/StudentExport';
 import { SUBJECTS_LIST } from '../../lib/constants';
+import { getCurrentSession } from '../../lib/sessionUtils';
 
 const AdminDashboard = () => {
   const { user, token, role, logout } = useAuthStore();
   const navigate = useNavigate();
+  const currentSession = getCurrentSession();
 
   // --- STATE MANAGEMENT ---
   const [activeTab, setActiveTab] = useState('overview');
@@ -292,7 +294,7 @@ const AdminDashboard = () => {
         ca: scoreData.ca,
         exam: scoreData.exam,
         term: 'First Term',
-        session: '2025/2026'
+        session: currentSession
       }, token);
 
       alert(`Result for ${scoreData.subject} Saved Successfully!`);
@@ -418,7 +420,7 @@ const AdminDashboard = () => {
               {activeTab === 'overview' ? 'Dashboard' : activeTab}
               {refreshing && <Loader2 className="animate-spin text-slate-400" size={20} />}
             </h2>
-            <p className="text-slate-500 font-medium mt-1">Academic Session: <span className="text-blue-600 font-bold">2025/2026</span></p>
+            <p className="text-slate-500 font-medium mt-1">Academic Session: <span className="text-blue-600 font-bold">{currentSession}</span></p>
           </div>
 
           <div className="flex items-center gap-4 bg-white p-2 pr-6 rounded-full shadow-sm border border-slate-200">

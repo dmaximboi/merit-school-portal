@@ -5,10 +5,12 @@ import {
   Library, Monitor, Trees, GraduationCap, MapPin, Phone,
   ChevronRight, Star
 } from 'lucide-react';
+import { getNextSession } from '../../lib/sessionUtils';
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
+  const nextSession = getNextSession();
 
   // ROTATING BACKGROUNDS (9 Professional Images)
   const [currentBg, setCurrentBg] = useState(0);
@@ -111,7 +113,7 @@ const LandingPage = () => {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 text-blue-100 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest mb-8 animate-fade-in-up">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-              Admissions Open for 2025/2026
+              Admissions Open for {nextSession}
             </div>
 
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white mb-8 leading-[1.1] tracking-tight drop-shadow-lg animate-fade-in-up delay-100">

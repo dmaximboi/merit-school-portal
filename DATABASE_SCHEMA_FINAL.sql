@@ -73,7 +73,7 @@ INSERT INTO system_settings (key, value, description) VALUES
     ('fee_jamb', '15000', 'JAMB Tutorial Fee'),
     ('fee_alevel', '27500', 'A-Level Acceptance Fee'),
     ('fee_olevel', '10000', 'O-Level Form Fee'),
-    ('current_session', '2025/2026', 'Academic Session'),
+    ('current_session', '2026/2027', 'Academic Session'),
     ('cbt_price', '2000', 'CBT Subscription Price (3 months)'),
     ('quiz_price', '500', 'Quiz Unlock Price')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
@@ -226,7 +226,7 @@ CREATE TABLE IF NOT EXISTS results (
     total_score DECIMAL(5,2) GENERATED ALWAYS AS (ca_score + exam_score) STORED,
     grade TEXT,
     term TEXT DEFAULT 'First Term' CHECK (term IN ('First Term', 'Second Term', 'Third Term')),
-    session TEXT DEFAULT '2025/2026',
+    session TEXT DEFAULT '2026/2027',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(student_id, subject, term, session)
 );
