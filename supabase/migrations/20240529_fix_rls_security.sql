@@ -190,7 +190,6 @@ CREATE OR REPLACE VIEW public.view_active_subs AS
 SELECT 
   cs.id,
   cs.student_id,
-  cs.subscription_type,
   cs.start_date,
   cs.end_date,
   cs.is_active,
