@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
+import { useFlutterwave } from 'flutterwave-react-v3';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
 import { Loader2, ShieldCheck, Lock, CreditCard, ChevronLeft } from 'lucide-react';
@@ -67,7 +67,6 @@ const StudentPayment = () => {
             setError(err.message || "An error occurred during verification.");
         } finally {
             setVerifying(false);
-            closePaymentModal();
         }
     };
 
@@ -127,7 +126,6 @@ const StudentPayment = () => {
                                             if (response.status === "successful" || response.status === "completed") {
                                                 verifyPayment(response);
                                             } else {
-                                                closePaymentModal();
                                                 setError("Payment was not successful. Please try again.");
                                             }
                                         },

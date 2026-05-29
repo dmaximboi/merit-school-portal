@@ -95,20 +95,20 @@ const LibraryView = ({ user, role, isAdmin, token }) => {
   };
 
   const handleBuy = async (book) => {
-    const { useFlutterwave, closePaymentModal } = await import('flutterwave-react-v3');
-    
+    const { useFlutterwave } = await import('flutterwave-react-v3');
+
     const config = {
       public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
       tx_ref: `LIB-${Date.now()}-${user.id}`,
       amount: parseFloat(book.price),
       currency: 'NGN',
       payment_options: 'card,mobilemoney,ussd,banktransfer',
-      customer: { 
-        email: user.email, 
-        name: `${user.surname || user.full_name || 'Student'} ${user.first_name || ''}` 
+      customer: {
+        email: user.email,
+        name: `${user.surname || user.full_name || 'Student'} ${user.first_name || ''}`
       },
-      customizations: { 
-        title: book.title, 
+      customizations: {
+        title: book.title,
         description: "Library Book Purchase",
         logo: 'https://st2.depositphotos.com/4403291/7418/v/450/depositphotos_74189661-stock-illustration-online-shop-log.jpg'
       },
@@ -118,7 +118,6 @@ const LibraryView = ({ user, role, isAdmin, token }) => {
 
     handlePayment({
       callback: async (response) => {
-        closePaymentModal();
         if (response.status === "successful") {
           try {
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';

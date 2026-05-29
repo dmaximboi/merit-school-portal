@@ -146,7 +146,6 @@ const StudentDashboard = () => {
 
       handleFlutterPayment({
          callback: async (response) => {
-            closePaymentModal();
             const txId = response.transaction_id || response.id;
 
             if (txId) {
