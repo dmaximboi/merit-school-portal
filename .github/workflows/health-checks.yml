@@ -1,0 +1,57 @@
+name: Health Checks - Keep Services Alive
+
+on:
+  schedule:
+    # Database health check - once daily at 00:00 UTC
+    - cron: '0 0 * * *'
+    # Backend health check - every 12 hours (00:00 and 12:00 UTC)
+    - cron: '0 */12 * * *'
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  database-health-check:
+    name: Database Health Check
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 0 * * *'
+    steps:
+      - name: Check Database Connection
+        run: |
+          echo "🔍 Checking database health..."
+          # Replace with your actual database health check endpoint
+          # This could be a Supabase health check or a custom endpoint
+          curl -f -s -o /dev/null -w "Database Status: %{http_code}\n" \
+            ${{ secrets.DATABASE_HEALTH_URL }} || exit 1
+          echo "✅ Database is healthy"
+
+  backend-health-check:
+    name: Backend Health Check
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 */12 * * *'
+    steps:
+      - name: Check Backend API
+        run: |
+          echo "🔍 Checking backend health..."
+          # Hit the backend health endpoint
+          BACKEND_URL=${{ secrets.BACKEND_URL }}
+          if [ -z "$BACKEND_URL" ]; then
+            BACKEND_URL="https://meritcollege.vercel.app"
+          fi
+          
+          echo "Hitting: $BACKEND_URL"
+          curl -f -s -o /dev/null -w "Backend Status: %{http_code}\n" \
+            "$BACKEND_URL" || exit 1
+          echo "✅ Backend is healthy"
+          
+      - name: Check API Root Endpoint
+        run: |
+          echo "🔍 Checking API root endpoint..."
+          BACKEND_API_URL=${{ secrets.BACKEND_API_URL }}
+          if [ -z "$BACKEND_API_URL" ]; then
+            BACKEND_API_URL="https://meritcollege.vercel.app/api"
+          fi
+          
+          echo "Hitting: $BACKEND_API_URL"
+          curl -f -s -o /dev/null -w "API Status: %{http_code}\n" \
+            "$BACKEND_API_URL" || exit 1
+          echo "✅ API is responsive"
