@@ -12,7 +12,6 @@ const QuizInterface = ({ user, token }) => {
     const [newQuiz, setNewQuiz] = useState({
         title: '',
         subject: 'General',
-        subject: 'General',
         duration: 30, // Default 30 mins
         is_public: true,
         questionsJson: ''
@@ -50,7 +49,6 @@ const QuizInterface = ({ user, token }) => {
 
             await api.post('/quizzes/create', {
                 title: newQuiz.title,
-                subject: newQuiz.subject,
                 subject: newQuiz.subject,
                 duration: parseInt(newQuiz.duration), // Send duration
                 is_public: newQuiz.is_public,

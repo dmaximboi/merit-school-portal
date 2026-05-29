@@ -4,7 +4,7 @@ import { api } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import html2canvas from 'html2canvas';
-import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
+import { useFlutterwave } from 'flutterwave-react-v3';
 import {
    LayoutDashboard, BookOpen, CreditCard, User, LogOut,
    Bell, Calendar, Lock, AlertCircle, CheckCircle, ExternalLink,
