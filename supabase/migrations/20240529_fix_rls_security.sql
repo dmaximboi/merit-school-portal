@@ -70,20 +70,15 @@ CREATE POLICY "Authenticated can read library_books" ON public.library_books
   FOR SELECT TO authenticated
   USING (true);
 
--- library_purchases - Allow service role full access, students to read their own
+-- library_purchases - Allow service role full access, users to read their own
 CREATE POLICY "Service role can manage library_purchases" ON public.library_purchases
   FOR ALL TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Students can read own library_purchases" ON public.library_purchases
+CREATE POLICY "Users can read own library_purchases" ON public.library_purchases
   FOR SELECT TO authenticated
-  USING (
-    student_id IN (
-      SELECT id FROM public.students 
-      WHERE email IN (SELECT email FROM public.profiles WHERE id = auth.uid())
-    )
-  );
+  USING (user_id = auth.uid());
 
 -- otp_codes - Allow service role full access only
 CREATE POLICY "Service role can manage otp_codes" ON public.otp_codes
