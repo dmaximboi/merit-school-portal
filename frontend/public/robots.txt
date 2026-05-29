@@ -1,0 +1,18 @@
+# robots.txt for Merit College of Advanced Studies
+# Allow all web crawlers to access the site
+
+User-agent: *
+Allow: /
+
+# Disallow admin and authenticated routes
+Disallow: /admin/
+Disallow: /student/
+Disallow: /staff/
+Disallow: /parent/
+Disallow: /api/
+
+# Allow sitemap
+Sitemap: https://meritcollege.vercel.app/sitemap.xml
+
+# Crawl delay (optional, adjust as needed)
+Crawl-delay: 1
